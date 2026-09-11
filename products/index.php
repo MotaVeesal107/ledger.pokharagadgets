@@ -52,7 +52,10 @@ require __DIR__ . '/../includes/header.php';
     <div class="page-title h4">Products <span class="badge text-bg-light"><?= count($products) ?></span></div>
     <div class="page-subtitle">Stock is always calculated live from purchases, sales and adjustments.</div>
   </div>
-  <a href="/products/add.php" class="btn btn-accent">+ Add product</a>
+  <div>
+    <a href="/products/import.php" class="btn btn-outline-secondary">Import CSV</a>
+    <a href="/products/add.php" class="btn btn-accent">+ Add product</a>
+  </div>
 </div>
 
 <form method="get" class="row g-2 mb-3">
