@@ -55,6 +55,17 @@ function warranty_expiry_date($warranty_period, $from_date) {
     return $expiry ? date('Y-m-d', $expiry) : null;
 }
 
+/**
+ * Builds an auto-generated SKU once a product's id is known, e.g.
+ * "Mobile Cover" + id 123 -> "MOB-00123". Deterministic and unique by
+ * construction (the id alone is unique), so no separate counter is needed.
+ */
+function generate_sku($category, $id) {
+    $letters = preg_replace('/[^A-Za-z]/', '', (string)$category);
+    $prefix = $letters !== '' ? strtoupper(substr($letters, 0, 3)) : 'GEN';
+    return $prefix . '-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
+}
+
 function get_settings(PDO $pdo) {
     static $settings = null;
     if ($settings === null) {

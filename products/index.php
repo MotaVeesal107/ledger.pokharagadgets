@@ -7,17 +7,27 @@ require_login();
 
 $search = trim($_GET['q'] ?? '');
 $deviceFilter = trim($_GET['device_model'] ?? '');
+$categoryFilter = trim($_GET['category'] ?? '');
+$brandFilter = trim($_GET['brand'] ?? '');
 
 $conditions = [];
 $params = [];
 if ($search !== '') {
-    $conditions[] = '(p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ? OR p.category LIKE ? OR p.device_model LIKE ?)';
+    $conditions[] = '(p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ? OR p.category LIKE ? OR p.brand LIKE ? OR p.device_model LIKE ?)';
     $like = '%' . $search . '%';
-    array_push($params, $like, $like, $like, $like, $like);
+    array_push($params, $like, $like, $like, $like, $like, $like);
 }
 if ($deviceFilter !== '') {
     $conditions[] = 'p.device_model = ?';
     $params[] = $deviceFilter;
+}
+if ($categoryFilter !== '') {
+    $conditions[] = 'p.category = ?';
+    $params[] = $categoryFilter;
+}
+if ($brandFilter !== '') {
+    $conditions[] = 'p.brand = ?';
+    $params[] = $brandFilter;
 }
 $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
@@ -25,6 +35,12 @@ $products = get_products_with_stock($pdo, $where, $params);
 $showCost = can_view_cost($pdo);
 $deviceModels = $pdo->query(
     "SELECT DISTINCT device_model FROM products WHERE device_model IS NOT NULL AND device_model <> '' ORDER BY device_model"
+)->fetchAll(PDO::FETCH_COLUMN);
+$brands = $pdo->query(
+    "SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand <> '' ORDER BY brand"
+)->fetchAll(PDO::FETCH_COLUMN);
+$categories = $pdo->query(
+    "SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category <> '' ORDER BY category"
 )->fetchAll(PDO::FETCH_COLUMN);
 
 $pageTitle = 'Products';
@@ -40,8 +56,24 @@ require __DIR__ . '/../includes/header.php';
 </div>
 
 <form method="get" class="row g-2 mb-3">
-  <div class="col-auto" style="min-width:280px;">
-    <input type="text" name="q" class="form-control" placeholder="Search name, SKU, barcode, category, device model" value="<?= e($search) ?>">
+  <div class="col-auto" style="min-width:260px;">
+    <input type="text" name="q" class="form-control" placeholder="Search name, SKU, barcode, category, brand, device model" value="<?= e($search) ?>">
+  </div>
+  <div class="col-auto">
+    <select name="category" class="form-select" onchange="this.form.submit()">
+      <option value="">All categories</option>
+      <?php foreach ($categories as $c): ?>
+      <option value="<?= e($c) ?>" <?= $categoryFilter === $c ? 'selected' : '' ?>><?= e($c) ?></option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+  <div class="col-auto">
+    <select name="brand" class="form-select" onchange="this.form.submit()">
+      <option value="">All brands</option>
+      <?php foreach ($brands as $b): ?>
+      <option value="<?= e($b) ?>" <?= $brandFilter === $b ? 'selected' : '' ?>><?= e($b) ?></option>
+      <?php endforeach; ?>
+    </select>
   </div>
   <div class="col-auto">
     <select name="device_model" class="form-select" onchange="this.form.submit()">
@@ -58,7 +90,7 @@ require __DIR__ . '/../includes/header.php';
   <table class="table mb-0">
     <thead>
       <tr>
-        <th>Product</th><th>Device Model</th><th>SKU</th><th>Category</th><th>Stock</th><th>Unit</th>
+        <th>Product</th><th>Category</th><th>Brand</th><th>Device Model</th><th>SKU</th><th>Stock</th><th>Unit</th>
         <?php if ($showCost): ?><th>Cost</th><?php endif; ?>
         <th>Sell Price</th><th>Reorder</th><th>Status</th><th></th>
       </tr>
@@ -70,9 +102,10 @@ require __DIR__ . '/../includes/header.php';
           <?= e($p['name']) ?>
           <?php if ($p['is_serialized']): ?><span class="badge text-bg-light border">serialized</span><?php endif; ?>
         </td>
+        <td><?= e($p['category']) ?></td>
+        <td><?= e($p['brand']) ?></td>
         <td><?= e($p['device_model']) ?></td>
         <td><?= e($p['sku']) ?></td>
-        <td><?= e($p['category']) ?></td>
         <td><?= $stock ?> <?= e($p['unit']) ?></td>
         <td><?= e($p['unit']) ?></td>
         <?php if ($showCost): ?><td><?= format_currency($p['cost_price_ref']) ?></td><?php endif; ?>
@@ -93,7 +126,7 @@ require __DIR__ . '/../includes/header.php';
       </tr>
       <?php endforeach; ?>
       <?php if (!$products): ?>
-      <tr><td colspan="10" class="text-center text-muted py-4">No products yet.</td></tr>
+      <tr><td colspan="12" class="text-center text-muted py-4">No products yet.</td></tr>
       <?php endif; ?>
     </tbody>
   </table>

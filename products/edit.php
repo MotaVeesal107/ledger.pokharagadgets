@@ -18,18 +18,21 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $name = trim($_POST['name'] ?? '');
+    $category = trim($_POST['category']) ?: null;
     if ($name === '') {
         $error = 'Product name is required.';
     } else {
         try {
+            $sku = trim($_POST['sku'] ?? '') ?: generate_sku($category, $id);
             $stmt = $pdo->prepare(
-                'UPDATE products SET name=?, sku=?, barcode=?, category=?, device_model=?, unit=?, low_stock_threshold=?, warranty_period=?, is_serialized=?, cost_price_ref=?, sell_price_ref=? WHERE id=?'
+                'UPDATE products SET name=?, sku=?, barcode=?, category=?, brand=?, device_model=?, unit=?, low_stock_threshold=?, warranty_period=?, is_serialized=?, cost_price_ref=?, sell_price_ref=? WHERE id=?'
             );
             $stmt->execute([
                 $name,
-                trim($_POST['sku']) ?: null,
+                $sku,
                 trim($_POST['barcode']) ?: null,
-                trim($_POST['category']) ?: null,
+                $category,
+                trim($_POST['brand']) ?: null,
                 trim($_POST['device_model']) ?: null,
                 trim($_POST['unit']) ?: 'pcs',
                 (int)($_POST['low_stock_threshold'] ?? 0),
@@ -53,6 +56,12 @@ $showCost = can_view_cost($pdo);
 $deviceModels = $pdo->query(
     "SELECT DISTINCT device_model FROM products WHERE device_model IS NOT NULL AND device_model <> '' ORDER BY device_model"
 )->fetchAll(PDO::FETCH_COLUMN);
+$brands = $pdo->query(
+    "SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand <> '' ORDER BY brand"
+)->fetchAll(PDO::FETCH_COLUMN);
+$categories = $pdo->query(
+    "SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category <> '' ORDER BY category"
+)->fetchAll(PDO::FETCH_COLUMN);
 
 $pageTitle = 'Edit Product';
 $active = 'products';
@@ -72,19 +81,26 @@ require __DIR__ . '/../includes/header.php';
       <input type="text" name="name" class="form-control" value="<?= e($product['name']) ?>" required></div>
     <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">SKU</label>
-        <input type="text" name="sku" class="form-control" value="<?= e($product['sku']) ?>"></div>
+        <input type="text" name="sku" class="form-control" value="<?= e($product['sku']) ?>" placeholder="Leave blank to auto-generate">
+      </div>
       <div class="col-md-6 mb-3"><label class="form-label">Barcode</label>
         <input type="text" name="barcode" class="form-control" value="<?= e($product['barcode']) ?>"></div>
     </div>
     <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">Category</label>
-        <input type="text" name="category" class="form-control" value="<?= e($product['category']) ?>" placeholder="e.g. Mobile Cover"></div>
+        <input type="text" name="category" class="form-control" list="categories" value="<?= e($product['category']) ?>" placeholder="e.g. Headphone">
+        <datalist id="categories"><?php foreach ($categories as $c): ?><option value="<?= e($c) ?>"><?php endforeach; ?></datalist>
+      </div>
+      <div class="col-md-6 mb-3"><label class="form-label">Brand</label>
+        <input type="text" name="brand" class="form-control" list="brands" value="<?= e($product['brand']) ?>" placeholder="e.g. Sony, boAt, JBL">
+        <datalist id="brands"><?php foreach ($brands as $b): ?><option value="<?= e($b) ?>"><?php endforeach; ?></datalist>
+      </div>
+    </div>
+    <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">Device model</label>
         <input type="text" name="device_model" class="form-control" list="device-models" value="<?= e($product['device_model']) ?>" placeholder="e.g. iPhone 13">
         <datalist id="device-models"><?php foreach ($deviceModels as $dm): ?><option value="<?= e($dm) ?>"><?php endforeach; ?></datalist>
       </div>
-    </div>
-    <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">Unit</label>
         <input type="text" name="unit" class="form-control" value="<?= e($product['unit']) ?>"></div>
     </div>

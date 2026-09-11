@@ -8,24 +8,32 @@ $showCost = can_view_cost($pdo);
 $deviceModels = $pdo->query(
     "SELECT DISTINCT device_model FROM products WHERE device_model IS NOT NULL AND device_model <> '' ORDER BY device_model"
 )->fetchAll(PDO::FETCH_COLUMN);
+$brands = $pdo->query(
+    "SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand <> '' ORDER BY brand"
+)->fetchAll(PDO::FETCH_COLUMN);
+$categories = $pdo->query(
+    "SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category <> '' ORDER BY category"
+)->fetchAll(PDO::FETCH_COLUMN);
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $name = trim($_POST['name'] ?? '');
+    $category = trim($_POST['category']) ?: null;
     if ($name === '') {
         $error = 'Product name is required.';
     } else {
         try {
             $stmt = $pdo->prepare(
-                'INSERT INTO products (name, sku, barcode, category, device_model, unit, low_stock_threshold, warranty_period, is_serialized, cost_price_ref, sell_price_ref)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO products (name, sku, barcode, category, brand, device_model, unit, low_stock_threshold, warranty_period, is_serialized, cost_price_ref, sell_price_ref)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $name,
                 trim($_POST['sku']) ?: null,
                 trim($_POST['barcode']) ?: null,
-                trim($_POST['category']) ?: null,
+                $category,
+                trim($_POST['brand']) ?: null,
                 trim($_POST['device_model']) ?: null,
                 trim($_POST['unit']) ?: 'pcs',
                 (int)($_POST['low_stock_threshold'] ?? 0),
@@ -34,7 +42,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $showCost ? (float)($_POST['cost_price_ref'] ?? 0) : 0,
                 (float)($_POST['sell_price_ref'] ?? 0),
             ]);
-            flash_set('success', 'Product added. Record a purchase to bring in stock.');
+            $newId = (int)$pdo->lastInsertId();
+            $skuMessage = '';
+            if (trim($_POST['sku'] ?? '') === '') {
+                $autoSku = generate_sku($category, $newId);
+                $pdo->prepare('UPDATE products SET sku = ? WHERE id = ?')->execute([$autoSku, $newId]);
+                $skuMessage = " SKU auto-generated: {$autoSku}.";
+            }
+            flash_set('success', 'Product added.' . $skuMessage . ' Record a purchase to bring in stock.');
             redirect('/products/index.php');
         } catch (PDOException $e) {
             $error = 'That SKU is already in use by another product.';
@@ -56,20 +71,27 @@ require __DIR__ . '/../includes/header.php';
       <input type="text" name="name" class="form-control" value="<?= e($_POST['name'] ?? '') ?>" required></div>
     <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">SKU</label>
-        <input type="text" name="sku" class="form-control" value="<?= e($_POST['sku'] ?? '') ?>"></div>
+        <input type="text" name="sku" class="form-control" value="<?= e($_POST['sku'] ?? '') ?>" placeholder="Leave blank to auto-generate">
+      </div>
       <div class="col-md-6 mb-3"><label class="form-label">Barcode</label>
         <input type="text" name="barcode" class="form-control" value="<?= e($_POST['barcode'] ?? '') ?>"></div>
     </div>
     <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">Category</label>
-        <input type="text" name="category" class="form-control" value="<?= e($_POST['category'] ?? '') ?>" placeholder="e.g. Mobile Cover"></div>
+        <input type="text" name="category" class="form-control" list="categories" value="<?= e($_POST['category'] ?? '') ?>" placeholder="e.g. Headphone">
+        <datalist id="categories"><?php foreach ($categories as $c): ?><option value="<?= e($c) ?>"><?php endforeach; ?></datalist>
+      </div>
+      <div class="col-md-6 mb-3"><label class="form-label">Brand</label>
+        <input type="text" name="brand" class="form-control" list="brands" value="<?= e($_POST['brand'] ?? '') ?>" placeholder="e.g. Sony, boAt, JBL">
+        <datalist id="brands"><?php foreach ($brands as $b): ?><option value="<?= e($b) ?>"><?php endforeach; ?></datalist>
+      </div>
+    </div>
+    <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">Device model</label>
         <input type="text" name="device_model" class="form-control" list="device-models" value="<?= e($_POST['device_model'] ?? '') ?>" placeholder="e.g. iPhone 13">
         <datalist id="device-models"><?php foreach ($deviceModels as $dm): ?><option value="<?= e($dm) ?>"><?php endforeach; ?></datalist>
         <div class="form-text">For cases/accessories tied to a specific phone model. Leave blank if not applicable.</div>
       </div>
-    </div>
-    <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">Unit</label>
         <input type="text" name="unit" class="form-control" value="<?= e($_POST['unit'] ?? 'pcs') ?>"></div>
     </div>
