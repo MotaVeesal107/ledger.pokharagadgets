@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/functions.php';
+
 /**
  * Party balance convention (used everywhere):
  *   positive = the party owes the shop money (receivable)

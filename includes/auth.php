@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/functions.php';
+
 /** Session-based auth. Requires config.php (session + $pdo) to be loaded first. */
 
 function current_user() {
