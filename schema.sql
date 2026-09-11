@@ -64,6 +64,7 @@ CREATE TABLE products (
   sku VARCHAR(60) DEFAULT NULL,
   barcode VARCHAR(60) DEFAULT NULL,
   category VARCHAR(100) DEFAULT NULL,
+  device_model VARCHAR(100) DEFAULT NULL,
   unit VARCHAR(20) NOT NULL DEFAULT 'pcs',
   low_stock_threshold INT NOT NULL DEFAULT 0,
   warranty_period VARCHAR(40) DEFAULT NULL,
@@ -72,7 +73,8 @@ CREATE TABLE products (
   sell_price_ref DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_products_sku (sku),
-  INDEX idx_products_category (category)
+  INDEX idx_products_category (category),
+  INDEX idx_products_device_model (device_model)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------

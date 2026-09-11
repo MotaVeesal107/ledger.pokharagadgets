@@ -5,6 +5,9 @@ require_once __DIR__ . '/../includes/auth.php';
 require_login();
 
 $showCost = can_view_cost($pdo);
+$deviceModels = $pdo->query(
+    "SELECT DISTINCT device_model FROM products WHERE device_model IS NOT NULL AND device_model <> '' ORDER BY device_model"
+)->fetchAll(PDO::FETCH_COLUMN);
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -15,14 +18,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             $stmt = $pdo->prepare(
-                'INSERT INTO products (name, sku, barcode, category, unit, low_stock_threshold, warranty_period, is_serialized, cost_price_ref, sell_price_ref)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO products (name, sku, barcode, category, device_model, unit, low_stock_threshold, warranty_period, is_serialized, cost_price_ref, sell_price_ref)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $name,
                 trim($_POST['sku']) ?: null,
                 trim($_POST['barcode']) ?: null,
                 trim($_POST['category']) ?: null,
+                trim($_POST['device_model']) ?: null,
                 trim($_POST['unit']) ?: 'pcs',
                 (int)($_POST['low_stock_threshold'] ?? 0),
                 trim($_POST['warranty_period']) ?: null,
@@ -58,7 +62,14 @@ require __DIR__ . '/../includes/header.php';
     </div>
     <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">Category</label>
-        <input type="text" name="category" class="form-control" value="<?= e($_POST['category'] ?? '') ?>"></div>
+        <input type="text" name="category" class="form-control" value="<?= e($_POST['category'] ?? '') ?>" placeholder="e.g. Mobile Cover"></div>
+      <div class="col-md-6 mb-3"><label class="form-label">Device model</label>
+        <input type="text" name="device_model" class="form-control" list="device-models" value="<?= e($_POST['device_model'] ?? '') ?>" placeholder="e.g. iPhone 13">
+        <datalist id="device-models"><?php foreach ($deviceModels as $dm): ?><option value="<?= e($dm) ?>"><?php endforeach; ?></datalist>
+        <div class="form-text">For cases/accessories tied to a specific phone model. Leave blank if not applicable.</div>
+      </div>
+    </div>
+    <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">Unit</label>
         <input type="text" name="unit" class="form-control" value="<?= e($_POST['unit'] ?? 'pcs') ?>"></div>
     </div>
