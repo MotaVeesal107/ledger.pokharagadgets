@@ -4,10 +4,12 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/sales.php';
 require_once __DIR__ . '/../includes/stock.php';
+require_once __DIR__ . '/../includes/accounts.php';
 require_login();
 
 $customers = $pdo->query("SELECT id, name FROM parties WHERE type = 'customer' ORDER BY name")->fetchAll();
 $products = $pdo->query('SELECT id, name, sku, is_serialized, sell_price_ref FROM products ORDER BY name')->fetchAll();
+$accounts = $pdo->query('SELECT id, name FROM accounts ORDER BY name')->fetchAll();
 $settings = get_settings($pdo);
 
 foreach ($products as &$p) {
@@ -38,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($row['amount'] === '' || (float)$row['amount'] <= 0) {
                 continue;
             }
-            $payments[] = ['method' => $row['method'], 'amount' => (float)$row['amount']];
+            $payments[] = ['method' => $row['method'], 'amount' => (float)$row['amount'], 'account_id' => (int)($row['account_id'] ?? 0) ?: null];
         }
 
         $sale = create_sale($pdo, [
@@ -120,7 +122,7 @@ require __DIR__ . '/../includes/header.php';
       <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addPaymentRow()">+ Add payment</button>
     </div>
     <table class="table mb-1" id="payments-table">
-      <thead><tr><th style="width:30%">Method</th><th style="width:20%">Amount</th><th></th></tr></thead>
+      <thead><tr><th style="width:25%">Method</th><th style="width:18%">Amount</th><th style="width:25%">Account</th><th></th></tr></thead>
       <tbody id="payments-body"></tbody>
     </table>
     <div id="payment-check" class="small"></div>
@@ -138,6 +140,7 @@ const PRODUCTS = <?= json_encode(array_map(fn($p) => [
 ], $products)) ?>;
 const VAT_ENABLED = <?= $settings['vat_enabled'] ? 'true' : 'false' ?>;
 const VAT_RATE = <?= (float)$settings['vat_rate'] ?>;
+const ACCOUNTS = <?= json_encode(array_map(fn($a) => ['id' => (int)$a['id'], 'name' => $a['name']], $accounts)) ?>;
 
 let itemIndex = 0, paymentIndex = 0;
 
@@ -236,12 +239,20 @@ function recalc() {
   checkPayments(total);
 }
 
+function accountOptions() {
+  let html = '<option value="">No specific account</option>';
+  for (const a of ACCOUNTS) {
+    html += `<option value="${a.id}">${a.name}</option>`;
+  }
+  return html;
+}
+
 function addPaymentRow() {
   const i = paymentIndex++;
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td>
-      <select name="payments[${i}][method]" class="form-select form-select-sm">
+      <select name="payments[${i}][method]" class="form-select form-select-sm" onchange="onPaymentMethodChange(this)">
         <option value="cash">Cash</option>
         <option value="esewa">eSewa QR</option>
         <option value="khalti">Khalti QR</option>
@@ -251,9 +262,20 @@ function addPaymentRow() {
       </select>
     </td>
     <td><input type="number" step="0.01" min="0" value="0" name="payments[${i}][amount]" class="form-control form-control-sm payment-amount" oninput="recalc()"></td>
+    <td class="account-cell"><select name="payments[${i}][account_id]" class="form-select form-select-sm">${accountOptions()}</select></td>
     <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); recalc();">&times;</button></td>
   `;
   document.getElementById('payments-body').appendChild(tr);
+}
+
+function onPaymentMethodChange(select) {
+  const tr = select.closest('tr');
+  const cell = tr.querySelector('.account-cell');
+  if (select.value === 'due') {
+    cell.innerHTML = '<span class="text-muted small">Not applicable</span>';
+  } else {
+    cell.innerHTML = `<select name="${select.getAttribute('name').replace('[method]', '[account_id]')}" class="form-select form-select-sm">${accountOptions()}</select>`;
+  }
 }
 
 function checkPayments(total) {

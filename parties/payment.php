@@ -24,6 +24,7 @@ $direction = $party['type'] === 'customer' ? 'received_from_customer' : 'paid_to
 $method = trim($_POST['method'] ?? '') ?: null;
 $date = $_POST['payment_date'] ?? date('Y-m-d');
 $note = trim($_POST['note'] ?? '') ?: null;
+$accountId = (int)($_POST['account_id'] ?? 0) ?: null;
 
 if ($amount <= 0) {
     flash_set('error', 'Payment amount must be greater than zero.');
@@ -38,9 +39,9 @@ try {
 }
 
 $stmt = $pdo->prepare(
-    'INSERT INTO party_payments (party_id, direction, amount, method, payment_date, note, receipt_path, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO party_payments (party_id, direction, amount, method, payment_date, note, receipt_path, account_id, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
-$stmt->execute([$partyId, $direction, $amount, $method, $date, $note, $receiptPath, current_user()['id']]);
+$stmt->execute([$partyId, $direction, $amount, $method, $date, $note, $receiptPath, $accountId, current_user()['id']]);
 
 flash_set('success', 'Payment recorded.');
 redirect('/parties/view.php?id=' . $partyId);

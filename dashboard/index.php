@@ -4,6 +4,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/stock.php';
 require_once __DIR__ . '/../includes/parties.php';
+require_once __DIR__ . '/../includes/accounts.php';
 require_login();
 
 $today = date('Y-m-d');
@@ -50,6 +51,7 @@ $lowStock = $pdo->query(
 
 $totalCustomerDues = get_total_customer_dues($pdo);
 $totalSupplierDues = get_total_supplier_dues($pdo);
+$totalCashBank = get_total_cash_bank_balance($pdo);
 
 // Recent 10 transactions (purchases + sales combined).
 $recentSales = $pdo->query(
@@ -113,7 +115,7 @@ require __DIR__ . '/../includes/header.php';
 </div>
 
 <div class="row g-3 mb-3">
-  <div class="col-md-4">
+  <div class="col-md-3">
     <div class="card p-3">
       <div class="stat-label mb-2">Today's Sales by Method</div>
       <?php if (!$salesByMethod): ?><div class="text-muted small">No sales today yet.</div><?php endif; ?>
@@ -124,14 +126,21 @@ require __DIR__ . '/../includes/header.php';
       <?php endforeach; ?>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-md-3">
+    <div class="card p-3">
+      <div class="stat-label mb-2">Cash &amp; Bank Balance</div>
+      <div class="stat-value"><?= format_currency($totalCashBank) ?></div>
+      <a href="/accounts/index.php" class="small">Manage accounts &raquo;</a>
+    </div>
+  </div>
+  <div class="col-md-3">
     <div class="card p-3">
       <div class="stat-label mb-2">Customers owe the shop</div>
       <div class="stat-value text-danger"><?= format_currency($totalCustomerDues) ?></div>
       <a href="/parties/index.php?type=customer" class="small">View customers &raquo;</a>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-md-3">
     <div class="card p-3">
       <div class="stat-label mb-2">Shop owes suppliers</div>
       <div class="stat-value" style="color:#9a6a00;"><?= format_currency($totalSupplierDues) ?></div>

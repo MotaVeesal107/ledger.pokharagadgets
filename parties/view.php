@@ -3,7 +3,10 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/parties.php';
+require_once __DIR__ . '/../includes/accounts.php';
 require_login();
+
+$accounts = $pdo->query('SELECT id, name FROM accounts ORDER BY name')->fetchAll();
 
 $id = (int)($_GET['id'] ?? 0);
 $stmt = $pdo->prepare('SELECT * FROM parties WHERE id = ?');
@@ -72,10 +75,18 @@ require __DIR__ . '/../includes/header.php';
             <option value="bank">Bank</option>
           </select>
         </div>
+        <div class="col-sm-2">
+          <select name="account_id" class="form-select form-select-sm">
+            <option value="">No specific account</option>
+            <?php foreach ($accounts as $a): ?>
+            <option value="<?= (int)$a['id'] ?>"><?= e($a['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
         <div class="col-sm-2"><input type="date" name="payment_date" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required></div>
-        <div class="col-sm-2"><input type="text" name="note" class="form-control form-control-sm" placeholder="Note (optional)"></div>
+        <div class="col-sm-1"><input type="text" name="note" class="form-control form-control-sm" placeholder="Note"></div>
         <div class="col-sm-1"><input type="file" name="receipt" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.webp,.pdf" title="Receipt photo (optional)"></div>
-        <div class="col-sm-1"><button class="btn btn-accent btn-sm w-100">Save</button></div>
+        <div class="col-sm-12"><button class="btn btn-accent btn-sm">Save payment</button></div>
       </form>
     </div>
   </div>

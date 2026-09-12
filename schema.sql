@@ -20,6 +20,20 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
+-- accounts — named cash/bank/wallet accounts, so payments and expenses can be
+-- tied to a specific one (e.g. "Cash Drawer", "NIC Asia Bank", "eSewa").
+-- Optional everywhere it's referenced: a payment/expense with no account_id
+-- simply doesn't affect any account balance.
+-- ----------------------------------------------------------------------------
+CREATE TABLE accounts (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  type ENUM('cash','bank','wallet') NOT NULL DEFAULT 'cash',
+  opening_balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
 -- settings — single-row shop configuration.
 -- ----------------------------------------------------------------------------
 CREATE TABLE settings (
@@ -179,10 +193,13 @@ CREATE TABLE sale_payments (
   sale_id INT UNSIGNED NOT NULL,
   method ENUM('cash','esewa','khalti','fonepay','bank','due') NOT NULL,
   amount DECIMAL(12,2) NOT NULL,
+  account_id INT UNSIGNED DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_spay_sale FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+  CONSTRAINT fk_spay_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL,
   INDEX idx_spay_sale (sale_id),
-  INDEX idx_spay_method (method)
+  INDEX idx_spay_method (method),
+  INDEX idx_spay_account (account_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
@@ -197,12 +214,15 @@ CREATE TABLE party_payments (
   payment_date DATE NOT NULL,
   note TEXT,
   receipt_path VARCHAR(255) DEFAULT NULL,
+  account_id INT UNSIGNED DEFAULT NULL,
   created_by INT UNSIGNED DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_ppay_party FOREIGN KEY (party_id) REFERENCES parties(id),
   CONSTRAINT fk_ppay_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_ppay_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL,
   INDEX idx_ppay_party (party_id),
-  INDEX idx_ppay_date (payment_date)
+  INDEX idx_ppay_date (payment_date),
+  INDEX idx_ppay_account (account_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
@@ -260,10 +280,13 @@ CREATE TABLE expenses (
   amount DECIMAL(12,2) NOT NULL,
   note TEXT,
   receipt_path VARCHAR(255) DEFAULT NULL,
+  account_id INT UNSIGNED DEFAULT NULL,
   created_by INT UNSIGNED DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_exp_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-  INDEX idx_exp_date (expense_date)
+  CONSTRAINT fk_exp_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL,
+  INDEX idx_exp_date (expense_date),
+  INDEX idx_exp_account (account_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -278,3 +301,5 @@ VALUES (1, 'Pokhara Gadgets', NULL, 0, 13.00, 0);
 
 INSERT INTO users (name, email, password, role) VALUES
 ('Admin', 'admin@pokharagadgets.com', '$2y$12$5fjPxtdZAa5WrhlRZCxSZO.O4M/ZfGZhCIJ6zu3wevWtwtOJ1vyh6', 'admin');
+
+INSERT INTO accounts (name, type, opening_balance) VALUES ('Cash', 'cash', 0.00);

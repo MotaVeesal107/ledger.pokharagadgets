@@ -168,8 +168,10 @@ function create_sale(PDO $pdo, array $data) {
         }
 
         foreach ($data['payments'] as $payment) {
-            $stmt = $pdo->prepare('INSERT INTO sale_payments (sale_id, method, amount) VALUES (?, ?, ?)');
-            $stmt->execute([$saleId, $payment['method'], (float)$payment['amount']]);
+            // 'due' is a receivable, not real money movement — never let it touch an account.
+            $accountId = $payment['method'] === 'due' ? null : ($payment['account_id'] ?? null);
+            $stmt = $pdo->prepare('INSERT INTO sale_payments (sale_id, method, amount, account_id) VALUES (?, ?, ?, ?)');
+            $stmt->execute([$saleId, $payment['method'], (float)$payment['amount'], $accountId ?: null]);
         }
 
         $pdo->commit();

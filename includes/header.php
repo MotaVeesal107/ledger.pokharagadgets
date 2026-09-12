@@ -28,6 +28,7 @@ $user = current_user();
     <a class="nav-link<?= $active === 'sales' ? ' active' : '' ?>" href="/sales/index.php">Sales</a>
     <a class="nav-link<?= $active === 'returns' ? ' active' : '' ?>" href="/returns/index.php">Returns</a>
     <a class="nav-link<?= $active === 'expenses' ? ' active' : '' ?>" href="/expenses/index.php">Expenses</a>
+    <a class="nav-link<?= $active === 'accounts' ? ' active' : '' ?>" href="/accounts/index.php">Accounts</a>
     <a class="nav-link<?= $active === 'reports' ? ' active' : '' ?>" href="/reports/index.php">Reports</a>
 
     <?php if (is_admin()): ?>
