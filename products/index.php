@@ -53,6 +53,7 @@ require __DIR__ . '/../includes/header.php';
     <div class="page-subtitle">Stock is always calculated live from purchases, sales and adjustments.</div>
   </div>
   <div>
+    <a href="/products/barcodes.php" class="btn btn-outline-secondary">Barcode Generator</a>
     <a href="/products/import.php" class="btn btn-outline-secondary">Import CSV</a>
     <a href="/products/add.php" class="btn btn-accent">+ Add product</a>
   </div>

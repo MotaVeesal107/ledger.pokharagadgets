@@ -30,8 +30,13 @@ $stmt->execute([$from, $to]);
 $expensesByCategory = $stmt->fetchAll();
 $totalExpenses = array_sum(array_column($expensesByCategory, 'amt'));
 
+$stmt = $pdo->prepare('SELECT category, COALESCE(SUM(amount), 0) AS amt FROM other_income WHERE income_date BETWEEN ? AND ? GROUP BY category');
+$stmt->execute([$from, $to]);
+$incomeByCategory = $stmt->fetchAll();
+$totalOtherIncome = array_sum(array_column($incomeByCategory, 'amt'));
+
 $grossProfit = (float)$sales['subtotal'] - $cogs;
-$netProfit = $grossProfit - $totalExpenses;
+$netProfit = $grossProfit - $totalExpenses + $totalOtherIncome;
 
 if (($_GET['export'] ?? '') === 'csv') {
     $csvRows = [
@@ -39,6 +44,7 @@ if (($_GET['export'] ?? '') === 'csv') {
         ['Cost of goods sold (est.)', $cogs],
         ['Gross profit', $grossProfit],
         ['Total expenses', $totalExpenses],
+        ['Other income', $totalOtherIncome],
         ['Net profit', $netProfit],
     ];
     export_csv('profit_loss_' . $from . '_to_' . $to . '.csv', ['Line', 'Amount'], $csvRows);
@@ -67,6 +73,10 @@ require __DIR__ . '/../includes/header.php';
     <tr><td class="ps-3 text-muted small">Expense: <?= e(ucfirst($ec['category'])) ?></td><td class="text-end small text-muted">- <?= format_currency($ec['amt']) ?></td></tr>
     <?php endforeach; ?>
     <tr><td>Total expenses</td><td class="text-end">- <?= format_currency($totalExpenses) ?></td></tr>
+    <?php foreach ($incomeByCategory as $ic): ?>
+    <tr><td class="ps-3 text-muted small">Income: <?= e(ucfirst($ic['category'])) ?></td><td class="text-end small text-muted">+ <?= format_currency($ic['amt']) ?></td></tr>
+    <?php endforeach; ?>
+    <tr><td>Other income</td><td class="text-end">+ <?= format_currency($totalOtherIncome) ?></td></tr>
     <tr class="border-top"><td class="fw-semibold">Net profit</td><td class="text-end fw-semibold <?= $netProfit < 0 ? 'text-danger' : '' ?>"><?= format_currency($netProfit) ?></td></tr>
   </table>
   <div class="form-text mt-2">COGS is estimated using each product's current reference cost price, not FIFO lot costing.</div>

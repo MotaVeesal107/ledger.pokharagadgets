@@ -40,7 +40,11 @@ $stmt = $pdo->prepare('SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE expen
 $stmt->execute([$today]);
 $todayExpenses = (float)$stmt->fetchColumn();
 
-$todayProfit = (float)$todaySales['subtotal'] - $todayCogs - $todayExpenses;
+$stmt = $pdo->prepare('SELECT COALESCE(SUM(amount), 0) FROM other_income WHERE income_date = ?');
+$stmt->execute([$today]);
+$todayOtherIncome = (float)$stmt->fetchColumn();
+
+$todayProfit = (float)$todaySales['subtotal'] - $todayCogs - $todayExpenses + $todayOtherIncome;
 
 // Low stock products.
 $lowStock = $pdo->query(
@@ -101,7 +105,7 @@ require __DIR__ . '/../includes/header.php';
     <div class="card p-3 stat-card">
       <div class="stat-label">Today's Profit (est.)</div>
       <div class="stat-value <?= $todayProfit < 0 ? 'text-danger' : '' ?>"><?= format_currency($todayProfit) ?></div>
-      <div class="small text-muted">Sales − COGS − expenses</div>
+      <div class="small text-muted">Sales − COGS − expenses + other income</div>
     </div>
   </div>
   <?php endif; ?>

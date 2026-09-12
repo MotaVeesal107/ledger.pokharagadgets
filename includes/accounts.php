@@ -3,7 +3,7 @@ require_once __DIR__ . '/functions.php';
 
 /**
  * An account's balance = opening_balance
- *   + money received into it (sale_payments not method='due', party_payments received_from_customer)
+ *   + money received into it (sale_payments not method='due', party_payments received_from_customer, other_income)
  *   - money paid out of it (party_payments paid_to_supplier, expenses)
  * Only rows that were actually tagged with this account_id count — anything
  * left unassigned (account_id NULL) never affects any account's balance.
@@ -28,6 +28,10 @@ function get_account_balance(PDO $pdo, $accountId) {
     $stmt = $pdo->prepare('SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE account_id = ?');
     $stmt->execute([$accountId]);
     $balance -= (float)$stmt->fetchColumn();
+
+    $stmt = $pdo->prepare('SELECT COALESCE(SUM(amount), 0) FROM other_income WHERE account_id = ?');
+    $stmt->execute([$accountId]);
+    $balance += (float)$stmt->fetchColumn();
 
     return round($balance, 2);
 }
@@ -93,6 +97,17 @@ function get_account_transactions(PDO $pdo, $accountId) {
             'description' => 'Expense: ' . ucfirst($r['category']),
             'effect' => -1 * (float)$r['amount'],
             'sort_id' => 'e' . $r['id'],
+        ];
+    }
+
+    $stmt = $pdo->prepare('SELECT id, income_date AS txn_date, category, amount FROM other_income WHERE account_id = ?');
+    $stmt->execute([$accountId]);
+    foreach ($stmt->fetchAll() as $r) {
+        $rows[] = [
+            'date' => $r['txn_date'],
+            'description' => 'Income: ' . ucfirst($r['category']),
+            'effect' => (float)$r['amount'],
+            'sort_id' => 'i' . $r['id'],
         ];
     }
 
