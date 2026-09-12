@@ -55,6 +55,11 @@ function warranty_expiry_date($warranty_period, $from_date) {
     return $expiry ? date('Y-m-d', $expiry) : null;
 }
 
+/** Applies a percentage discount to an amount, rounded to 2dp. */
+function apply_discount($amount, $discountPercent) {
+    return round((float)$amount * (1 - (float)$discountPercent / 100), 2);
+}
+
 /**
  * Builds an auto-generated SKU once a product's id is known, e.g.
  * "Mobile Cover" + id 123 -> "MOB-00123". Deterministic and unique by

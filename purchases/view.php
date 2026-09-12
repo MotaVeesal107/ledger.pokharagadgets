@@ -19,12 +19,12 @@ $stmt = $pdo->prepare(
 $stmt->execute([$id]);
 $items = $stmt->fetchAll();
 
-// Group non-serialized/serialized rows of the same product+cost into one display line.
+// Group non-serialized/serialized rows of the same product+cost+discount into one display line.
 $grouped = [];
 foreach ($items as $it) {
-    $key = $it['product_id'] . '|' . $it['cost_price'] . '|' . ($it['serial_no'] ? 'S' : 'B');
+    $key = $it['product_id'] . '|' . $it['cost_price'] . '|' . $it['discount_percent'] . '|' . ($it['serial_no'] ? 'S' : 'B');
     if (!isset($grouped[$key])) {
-        $grouped[$key] = ['product_name' => $it['product_name'], 'sku' => $it['sku'], 'cost_price' => $it['cost_price'], 'qty' => 0, 'line_total' => 0, 'serials' => []];
+        $grouped[$key] = ['product_name' => $it['product_name'], 'sku' => $it['sku'], 'cost_price' => $it['cost_price'], 'discount_percent' => $it['discount_percent'], 'qty' => 0, 'line_total' => 0, 'serials' => []];
     }
     $grouped[$key]['qty'] += (int)$it['qty'];
     $grouped[$key]['line_total'] += (float)$it['line_total'];
@@ -49,19 +49,20 @@ require __DIR__ . '/../includes/header.php';
 
 <div class="card">
   <table class="table mb-0">
-    <thead><tr><th>Product</th><th>Qty</th><th class="text-end">Cost Price</th><th class="text-end">Line Total</th><th>Serials</th></tr></thead>
+    <thead><tr><th>Product</th><th>Qty</th><th class="text-end">Cost Price</th><th class="text-end">Disc.</th><th class="text-end">Line Total</th><th>Serials</th></tr></thead>
     <tbody>
       <?php foreach ($grouped as $g): ?>
       <tr>
         <td><?= e($g['product_name']) ?> <span class="text-muted small"><?= e($g['sku']) ?></span></td>
         <td><?= $g['qty'] ?></td>
         <td class="text-end"><?= format_currency($g['cost_price']) ?></td>
+        <td class="text-end"><?= $g['discount_percent'] > 0 ? e($g['discount_percent']) . '%' : '—' ?></td>
         <td class="text-end"><?= format_currency($g['line_total']) ?></td>
         <td class="small"><?= e(implode(', ', $g['serials'])) ?></td>
       </tr>
       <?php endforeach; ?>
     </tbody>
-    <tfoot><tr><td colspan="3" class="text-end fw-semibold">Total</td><td class="text-end fw-semibold"><?= format_currency($purchase['total']) ?></td><td></td></tr></tfoot>
+    <tfoot><tr><td colspan="4" class="text-end fw-semibold">Total</td><td class="text-end fw-semibold"><?= format_currency($purchase['total']) ?></td><td></td></tr></tfoot>
   </table>
 </div>
 <?php require __DIR__ . '/../includes/footer.php'; ?>

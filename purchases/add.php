@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'product_id' => (int)$row['product_id'],
                 'qty' => (int)$row['qty'],
                 'cost_price' => (float)$row['cost_price'],
+                'discount_percent' => (float)($row['discount_percent'] ?? 0),
                 'serials' => array_values($serials),
             ];
         }
@@ -88,9 +89,9 @@ require __DIR__ . '/../includes/header.php';
       <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addItemRow()">+ Add item</button>
     </div>
     <table class="table" id="items-table">
-      <thead><tr><th style="width:28%">Product</th><th style="width:10%">Qty</th><th style="width:15%">Cost price</th><th>Serials / IMEIs (one per line, only for serialized items)</th><th style="width:12%" class="text-end">Line total</th><th></th></tr></thead>
+      <thead><tr><th style="width:22%">Product</th><th style="width:8%">Qty</th><th style="width:13%">Cost price</th><th style="width:9%">Disc. %</th><th>Serials / IMEIs (one per line, only for serialized items)</th><th style="width:12%" class="text-end">Line total</th><th></th></tr></thead>
       <tbody id="items-body"></tbody>
-      <tfoot><tr><td colspan="4" class="text-end fw-semibold">Total</td><td class="text-end fw-semibold" id="grand-total">Rs. 0.00</td><td></td></tr></tfoot>
+      <tfoot><tr><td colspan="5" class="text-end fw-semibold">Total</td><td class="text-end fw-semibold" id="grand-total">Rs. 0.00</td><td></td></tr></tfoot>
     </table>
   </div>
 
@@ -122,6 +123,7 @@ function addItemRow() {
     <td><select name="items[${i}][product_id]" class="form-select form-select-sm product-select" onchange="onProductChange(this)">${productOptions(null)}</select></td>
     <td><input type="number" min="1" value="1" name="items[${i}][qty]" class="form-control form-control-sm qty-input" oninput="recalc(this)"></td>
     <td><input type="number" step="0.01" min="0" value="0" name="items[${i}][cost_price]" class="form-control form-control-sm cost-input" oninput="recalc(this)"></td>
+    <td><input type="number" step="0.01" min="0" max="100" value="0" name="items[${i}][discount_percent]" class="form-control form-control-sm discount-input" oninput="recalc(this)"></td>
     <td><textarea name="items[${i}][serials]" class="form-control form-control-sm serials-input" rows="1" placeholder="Only for serialized items" disabled></textarea></td>
     <td class="text-end line-total align-middle">Rs. 0.00</td>
     <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); recalcTotal();">&times;</button></td>
@@ -146,7 +148,9 @@ function recalc(el) {
   const tr = el.closest('tr');
   const qty = parseFloat(tr.querySelector('.qty-input').value) || 0;
   const cost = parseFloat(tr.querySelector('.cost-input').value) || 0;
-  tr.querySelector('.line-total').textContent = 'Rs. ' + (qty * cost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const discount = parseFloat(tr.querySelector('.discount-input').value) || 0;
+  const lineTotal = qty * cost * (1 - discount / 100);
+  tr.querySelector('.line-total').textContent = 'Rs. ' + lineTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   recalcTotal();
 }
 
@@ -155,7 +159,8 @@ function recalcTotal() {
   document.querySelectorAll('#items-body tr').forEach(tr => {
     const qty = parseFloat(tr.querySelector('.qty-input')?.value) || 0;
     const cost = parseFloat(tr.querySelector('.cost-input')?.value) || 0;
-    total += qty * cost;
+    const discount = parseFloat(tr.querySelector('.discount-input')?.value) || 0;
+    total += qty * cost * (1 - discount / 100);
   });
   document.getElementById('grand-total').textContent = 'Rs. ' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }

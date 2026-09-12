@@ -65,7 +65,7 @@ $isTaxInvoice = (float)$sale['vat_amount'] > 0;
   </div>
 
   <table>
-    <thead><tr><th>Item</th><th>Serial</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+    <thead><tr><th>Item</th><th>Serial</th><th>Qty</th><th>Price</th><th>Disc.</th><th>Total</th></tr></thead>
     <tbody>
       <?php foreach ($items as $it): ?>
       <tr>
@@ -73,16 +73,17 @@ $isTaxInvoice = (float)$sale['vat_amount'] > 0;
         <td><?= e($it['serial_no']) ?></td>
         <td><?= (int)$it['qty'] ?></td>
         <td><?= format_currency($it['sell_price']) ?></td>
+        <td><?= $it['discount_percent'] > 0 ? e($it['discount_percent']) . '%' : '—' ?></td>
         <td><?= format_currency($it['line_total']) ?></td>
       </tr>
       <?php endforeach; ?>
     </tbody>
     <tfoot class="totals">
-      <tr><td colspan="4" style="text-align:right;">Subtotal</td><td><?= format_currency($sale['subtotal']) ?></td></tr>
+      <tr><td colspan="5" style="text-align:right;">Subtotal</td><td><?= format_currency($sale['subtotal']) ?></td></tr>
       <?php if ($isTaxInvoice): ?>
-      <tr><td colspan="4" style="text-align:right;">VAT</td><td><?= format_currency($sale['vat_amount']) ?></td></tr>
+      <tr><td colspan="5" style="text-align:right;">VAT</td><td><?= format_currency($sale['vat_amount']) ?></td></tr>
       <?php endif; ?>
-      <tr class="grand"><td colspan="4" style="text-align:right;">Total</td><td><?= format_currency($sale['total']) ?></td></tr>
+      <tr class="grand"><td colspan="5" style="text-align:right;">Total</td><td><?= format_currency($sale['total']) ?></td></tr>
     </tfoot>
   </table>
 

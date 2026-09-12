@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'product_id' => (int)$row['product_id'],
                 'qty' => (int)$row['qty'],
                 'sell_price' => (float)$row['sell_price'],
+                'discount_percent' => (float)($row['discount_percent'] ?? 0),
                 'serials' => array_values(array_filter($row['serials'] ?? [], fn($s) => trim($s) !== '')),
             ];
         }
@@ -101,14 +102,14 @@ require __DIR__ . '/../includes/header.php';
       <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addItemRow()">+ Add item</button>
     </div>
     <table class="table" id="items-table">
-      <thead><tr><th style="width:26%">Product</th><th style="width:9%">Qty</th><th style="width:13%">Sell price</th><th>Serials (select exactly Qty)</th><th style="width:12%" class="text-end">Line total</th><th></th></tr></thead>
+      <thead><tr><th style="width:22%">Product</th><th style="width:8%">Qty</th><th style="width:12%">Sell price</th><th style="width:9%">Disc. %</th><th>Serials (select exactly Qty)</th><th style="width:12%" class="text-end">Line total</th><th></th></tr></thead>
       <tbody id="items-body"></tbody>
       <tfoot>
-        <tr><td colspan="4" class="text-end">Subtotal</td><td class="text-end" id="subtotal">Rs. 0.00</td><td></td></tr>
+        <tr><td colspan="5" class="text-end">Subtotal</td><td class="text-end" id="subtotal">Rs. 0.00</td><td></td></tr>
         <?php if ($settings['vat_enabled']): ?>
-        <tr><td colspan="4" class="text-end">VAT (<?= e($settings['vat_rate']) ?>%)</td><td class="text-end" id="vat-amount">Rs. 0.00</td><td></td></tr>
+        <tr><td colspan="5" class="text-end">VAT (<?= e($settings['vat_rate']) ?>%)</td><td class="text-end" id="vat-amount">Rs. 0.00</td><td></td></tr>
         <?php endif; ?>
-        <tr><td colspan="4" class="text-end fw-semibold">Total</td><td class="text-end fw-semibold" id="grand-total">Rs. 0.00</td><td></td></tr>
+        <tr><td colspan="5" class="text-end fw-semibold">Total</td><td class="text-end fw-semibold" id="grand-total">Rs. 0.00</td><td></td></tr>
       </tfoot>
     </table>
   </div>
@@ -160,6 +161,7 @@ function addItemRow() {
     <td><select name="items[${i}][product_id]" class="form-select form-select-sm product-select" onchange="onProductChange(this)">${productOptions(null)}</select></td>
     <td><input type="number" min="1" value="1" name="items[${i}][qty]" class="form-control form-control-sm qty-input" oninput="onQtyChange(this)"></td>
     <td><input type="number" step="0.01" min="0" value="0" name="items[${i}][sell_price]" class="form-control form-control-sm price-input" oninput="recalc()"></td>
+    <td><input type="number" step="0.01" min="0" max="100" value="0" name="items[${i}][discount_percent]" class="form-control form-control-sm discount-input" oninput="recalc()"></td>
     <td class="serials-cell text-muted small">Select a product</td>
     <td class="text-end line-total align-middle">Rs. 0.00</td>
     <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); recalc();">&times;</button></td>
@@ -220,7 +222,8 @@ function recalc() {
   document.querySelectorAll('#items-body tr').forEach(tr => {
     const qty = parseFloat(tr.querySelector('.qty-input')?.value) || 0;
     const price = parseFloat(tr.querySelector('.price-input')?.value) || 0;
-    const lineTotal = qty * price;
+    const discount = parseFloat(tr.querySelector('.discount-input')?.value) || 0;
+    const lineTotal = qty * price * (1 - discount / 100);
     tr.querySelector('.line-total').textContent = fmt(lineTotal);
     subtotal += lineTotal;
   });

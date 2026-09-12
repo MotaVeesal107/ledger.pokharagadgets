@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/stock.php';
 
 /**
@@ -23,6 +24,10 @@ function validate_purchase_items(PDO $pdo, array $items) {
         }
         if ((float)$item['cost_price'] < 0) {
             throw new InvalidArgumentException("Cost price cannot be negative for {$product['name']}.");
+        }
+        $discount = (float)($item['discount_percent'] ?? 0);
+        if ($discount < 0 || $discount > 100) {
+            throw new InvalidArgumentException("Discount must be between 0 and 100% for {$product['name']}.");
         }
         if ($product['is_serialized']) {
             $serials = array_values(array_filter(array_map('trim', $item['serials'] ?? [])));
@@ -55,7 +60,7 @@ function create_purchase(PDO $pdo, array $data) {
     try {
         $subtotal = 0.0;
         foreach ($data['items'] as $item) {
-            $subtotal += (int)$item['qty'] * (float)$item['cost_price'];
+            $subtotal += apply_discount((int)$item['qty'] * (float)$item['cost_price'], $item['discount_percent'] ?? 0);
         }
 
         $stmt = $pdo->prepare(
@@ -76,25 +81,27 @@ function create_purchase(PDO $pdo, array $data) {
         foreach ($data['items'] as $item) {
             $productId = (int)$item['product_id'];
             $costPrice = (float)$item['cost_price'];
+            $discount = (float)($item['discount_percent'] ?? 0);
             $serials = array_values(array_filter(array_map('trim', $item['serials'] ?? [])));
 
             if (!empty($serials)) {
+                $unitTotal = apply_discount($costPrice, $discount);
                 foreach ($serials as $serial) {
                     $stmt = $pdo->prepare(
-                        "INSERT INTO purchase_items (purchase_id, product_id, qty, cost_price, serial_no, line_total, status)
-                         VALUES (?, ?, 1, ?, ?, ?, 'in_stock')"
+                        "INSERT INTO purchase_items (purchase_id, product_id, qty, cost_price, discount_percent, serial_no, line_total, status)
+                         VALUES (?, ?, 1, ?, ?, ?, ?, 'in_stock')"
                     );
-                    $stmt->execute([$purchaseId, $productId, $costPrice, $serial, $costPrice]);
+                    $stmt->execute([$purchaseId, $productId, $costPrice, $discount, $serial, $unitTotal]);
                     record_stock_movement($pdo, $productId, 'in', 1, 'purchase', $purchaseId, $data['purchase_date'], "Serial {$serial}");
                 }
             } else {
                 $qty = (int)$item['qty'];
-                $lineTotal = $qty * $costPrice;
+                $lineTotal = apply_discount($qty * $costPrice, $discount);
                 $stmt = $pdo->prepare(
-                    'INSERT INTO purchase_items (purchase_id, product_id, qty, cost_price, serial_no, line_total)
-                     VALUES (?, ?, ?, ?, NULL, ?)'
+                    'INSERT INTO purchase_items (purchase_id, product_id, qty, cost_price, discount_percent, serial_no, line_total)
+                     VALUES (?, ?, ?, ?, ?, NULL, ?)'
                 );
-                $stmt->execute([$purchaseId, $productId, $qty, $costPrice, $lineTotal]);
+                $stmt->execute([$purchaseId, $productId, $qty, $costPrice, $discount, $lineTotal]);
                 record_stock_movement($pdo, $productId, 'in', $qty, 'purchase', $purchaseId, $data['purchase_date']);
             }
 

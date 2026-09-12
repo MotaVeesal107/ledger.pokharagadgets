@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/uploads.php';
 require_login();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -29,10 +30,17 @@ if ($amount <= 0) {
     redirect('/parties/view.php?id=' . $partyId);
 }
 
+try {
+    $receiptPath = save_receipt_upload('receipt');
+} catch (InvalidArgumentException $e) {
+    flash_set('error', $e->getMessage());
+    redirect('/parties/view.php?id=' . $partyId);
+}
+
 $stmt = $pdo->prepare(
-    'INSERT INTO party_payments (party_id, direction, amount, method, payment_date, note, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO party_payments (party_id, direction, amount, method, payment_date, note, receipt_path, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
 );
-$stmt->execute([$partyId, $direction, $amount, $method, $date, $note, current_user()['id']]);
+$stmt->execute([$partyId, $direction, $amount, $method, $date, $note, $receiptPath, current_user()['id']]);
 
 flash_set('success', 'Payment recorded.');
 redirect('/parties/view.php?id=' . $partyId);

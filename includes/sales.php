@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/stock.php';
 require_once __DIR__ . '/invoice.php';
 
@@ -29,6 +30,10 @@ function validate_sale_items(PDO $pdo, array $items) {
         }
         if ((float)$item['sell_price'] < 0) {
             throw new InvalidArgumentException("Sell price cannot be negative for {$product['name']}.");
+        }
+        $discount = (float)($item['discount_percent'] ?? 0);
+        if ($discount < 0 || $discount > 100) {
+            throw new InvalidArgumentException("Discount must be between 0 and 100% for {$product['name']}.");
         }
 
         if ($product['is_serialized']) {
@@ -102,7 +107,7 @@ function create_sale(PDO $pdo, array $data) {
 
     $subtotal = 0.0;
     foreach ($data['items'] as $item) {
-        $subtotal += (int)$item['qty'] * (float)$item['sell_price'];
+        $subtotal += apply_discount((int)$item['qty'] * (float)$item['sell_price'], $item['discount_percent'] ?? 0);
     }
     $vatEnabled = !empty($data['vat_enabled']);
     $vatAmount = $vatEnabled ? round($subtotal * ((float)$data['vat_rate'] / 100), 2) : 0.0;
@@ -135,27 +140,29 @@ function create_sale(PDO $pdo, array $data) {
         foreach ($data['items'] as $item) {
             $productId = (int)$item['product_id'];
             $sellPrice = (float)$item['sell_price'];
+            $discount = (float)($item['discount_percent'] ?? 0);
             $serials = array_values(array_filter(array_map('trim', $item['serials'] ?? [])));
 
             if (!empty($serials)) {
+                $unitTotal = apply_discount($sellPrice, $discount);
                 foreach ($serials as $serial) {
                     $purchaseItem = find_purchase_item_by_serial($pdo, $productId, $serial, 'in_stock');
                     $stmt = $pdo->prepare(
-                        'INSERT INTO sale_items (sale_id, product_id, qty, sell_price, serial_no, line_total)
-                         VALUES (?, ?, 1, ?, ?, ?)'
+                        'INSERT INTO sale_items (sale_id, product_id, qty, sell_price, discount_percent, serial_no, line_total)
+                         VALUES (?, ?, 1, ?, ?, ?, ?)'
                     );
-                    $stmt->execute([$saleId, $productId, $sellPrice, $serial, $sellPrice]);
+                    $stmt->execute([$saleId, $productId, $sellPrice, $discount, $serial, $unitTotal]);
                     record_stock_movement($pdo, $productId, 'out', 1, 'sale', $saleId, $data['sale_date'], "Serial {$serial}");
                     set_purchase_item_status($pdo, $purchaseItem['id'], 'sold');
                 }
             } else {
                 $qty = (int)$item['qty'];
-                $lineTotal = $qty * $sellPrice;
+                $lineTotal = apply_discount($qty * $sellPrice, $discount);
                 $stmt = $pdo->prepare(
-                    'INSERT INTO sale_items (sale_id, product_id, qty, sell_price, serial_no, line_total)
-                     VALUES (?, ?, ?, ?, NULL, ?)'
+                    'INSERT INTO sale_items (sale_id, product_id, qty, sell_price, discount_percent, serial_no, line_total)
+                     VALUES (?, ?, ?, ?, ?, NULL, ?)'
                 );
-                $stmt->execute([$saleId, $productId, $qty, $sellPrice, $lineTotal]);
+                $stmt->execute([$saleId, $productId, $qty, $sellPrice, $discount, $lineTotal]);
                 record_stock_movement($pdo, $productId, 'out', $qty, 'sale', $saleId, $data['sale_date']);
             }
         }

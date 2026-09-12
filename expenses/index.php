@@ -54,7 +54,12 @@ require __DIR__ . '/../includes/header.php';
       <tr>
         <td><?= e($exp['expense_date']) ?></td>
         <td><span class="badge text-bg-light border"><?= e(ucfirst($exp['category'])) ?></span></td>
-        <td><?= e($exp['note']) ?></td>
+        <td>
+          <?= e($exp['note']) ?>
+          <?php if (!empty($exp['receipt_path'])): ?>
+            <a href="/<?= e($exp['receipt_path']) ?>" target="_blank" class="small ms-1">[Receipt]</a>
+          <?php endif; ?>
+        </td>
         <td class="text-end"><?= format_currency($exp['amount']) ?></td>
         <td class="text-end">
           <a href="/expenses/edit.php?id=<?= (int)$exp['id'] ?>" class="btn btn-sm btn-outline-secondary">Edit</a>

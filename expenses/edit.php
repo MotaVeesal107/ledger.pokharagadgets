@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/uploads.php';
 require_login();
 
 $id = (int)($_GET['id'] ?? 0);
@@ -20,16 +21,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($amount <= 0) {
         $error = 'Amount must be greater than zero.';
     } else {
-        $stmt = $pdo->prepare('UPDATE expenses SET expense_date=?, category=?, amount=?, note=? WHERE id=?');
-        $stmt->execute([
-            $_POST['expense_date'] ?: date('Y-m-d'),
-            in_array($_POST['category'], ['rent', 'salary', 'electricity', 'other'], true) ? $_POST['category'] : 'other',
-            $amount,
-            trim($_POST['note']) ?: null,
-            $id,
-        ]);
-        flash_set('success', 'Expense updated.');
-        redirect('/expenses/index.php');
+        try {
+            $newReceipt = save_receipt_upload('receipt');
+            $receiptPath = $newReceipt ?: $expense['receipt_path'];
+            $stmt = $pdo->prepare('UPDATE expenses SET expense_date=?, category=?, amount=?, note=?, receipt_path=? WHERE id=?');
+            $stmt->execute([
+                $_POST['expense_date'] ?: date('Y-m-d'),
+                in_array($_POST['category'], ['rent', 'salary', 'electricity', 'other'], true) ? $_POST['category'] : 'other',
+                $amount,
+                trim($_POST['note']) ?: null,
+                $receiptPath,
+                $id,
+            ]);
+            if ($newReceipt && $expense['receipt_path']) {
+                delete_receipt_file($expense['receipt_path']);
+            }
+            flash_set('success', 'Expense updated.');
+            redirect('/expenses/index.php');
+        } catch (InvalidArgumentException $e) {
+            $error = $e->getMessage();
+        }
     }
     $expense = array_merge($expense, $_POST);
 }
@@ -41,7 +52,7 @@ require __DIR__ . '/../includes/header.php';
 <div class="topbar"><div class="page-title h4">Edit Expense</div></div>
 <div class="card p-4" style="max-width:480px;">
   <?php if ($error): ?><div class="alert alert-danger py-2"><?= e($error) ?></div><?php endif; ?>
-  <form method="post">
+  <form method="post" enctype="multipart/form-data">
     <?= csrf_field() ?>
     <div class="mb-3"><label class="form-label">Date</label>
       <input type="date" name="expense_date" class="form-control" value="<?= e($expense['expense_date']) ?>" required></div>
@@ -56,6 +67,11 @@ require __DIR__ . '/../includes/header.php';
       <input type="number" step="0.01" min="0.01" name="amount" class="form-control" value="<?= e($expense['amount']) ?>" required></div>
     <div class="mb-3"><label class="form-label">Note</label>
       <input type="text" name="note" class="form-control" value="<?= e($expense['note']) ?>"></div>
+    <div class="mb-3"><label class="form-label">Receipt photo (optional)</label>
+      <?php if (!empty($expense['receipt_path'])): ?>
+        <div class="form-text mb-1"><a href="/<?= e($expense['receipt_path']) ?>" target="_blank">View current receipt</a> — choosing a new file below replaces it.</div>
+      <?php endif; ?>
+      <input type="file" name="receipt" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf"></div>
     <button class="btn btn-accent">Save changes</button>
     <a href="/expenses/index.php" class="btn btn-link">Cancel</a>
   </form>

@@ -38,7 +38,7 @@ require __DIR__ . '/../includes/header.php';
 
 <div class="card mb-3">
   <table class="table mb-0">
-    <thead><tr><th>Product</th><th>Serial</th><th>Qty</th><th class="text-end">Price</th><th class="text-end">Line Total</th></tr></thead>
+    <thead><tr><th>Product</th><th>Serial</th><th>Qty</th><th class="text-end">Price</th><th class="text-end">Disc.</th><th class="text-end">Line Total</th></tr></thead>
     <tbody>
       <?php foreach ($items as $it): ?>
       <tr>
@@ -46,16 +46,17 @@ require __DIR__ . '/../includes/header.php';
         <td><?= e($it['serial_no']) ?></td>
         <td><?= (int)$it['qty'] ?></td>
         <td class="text-end"><?= format_currency($it['sell_price']) ?></td>
+        <td class="text-end"><?= $it['discount_percent'] > 0 ? e($it['discount_percent']) . '%' : '—' ?></td>
         <td class="text-end"><?= format_currency($it['line_total']) ?></td>
       </tr>
       <?php endforeach; ?>
     </tbody>
     <tfoot>
-      <tr><td colspan="4" class="text-end">Subtotal</td><td class="text-end"><?= format_currency($sale['subtotal']) ?></td></tr>
+      <tr><td colspan="5" class="text-end">Subtotal</td><td class="text-end"><?= format_currency($sale['subtotal']) ?></td></tr>
       <?php if ($sale['vat_amount'] > 0): ?>
-      <tr><td colspan="4" class="text-end">VAT</td><td class="text-end"><?= format_currency($sale['vat_amount']) ?></td></tr>
+      <tr><td colspan="5" class="text-end">VAT</td><td class="text-end"><?= format_currency($sale['vat_amount']) ?></td></tr>
       <?php endif; ?>
-      <tr><td colspan="4" class="text-end fw-semibold">Total</td><td class="text-end fw-semibold"><?= format_currency($sale['total']) ?></td></tr>
+      <tr><td colspan="5" class="text-end fw-semibold">Total</td><td class="text-end fw-semibold"><?= format_currency($sale['total']) ?></td></tr>
     </tfoot>
   </table>
 </div>

@@ -103,7 +103,7 @@ function get_party_transactions(PDO $pdo, $party_id) {
         ];
     }
 
-    $stmt = $pdo->prepare('SELECT id, payment_date AS txn_date, direction, amount, method, note FROM party_payments WHERE party_id = ?');
+    $stmt = $pdo->prepare('SELECT id, payment_date AS txn_date, direction, amount, method, note, receipt_path FROM party_payments WHERE party_id = ?');
     $stmt->execute([$party_id]);
     foreach ($stmt->fetchAll() as $pay) {
         $isReceived = $pay['direction'] === 'received_from_customer';
@@ -116,6 +116,7 @@ function get_party_transactions(PDO $pdo, $party_id) {
             'description' => $label . $method . ($pay['note'] ? ' - ' . $pay['note'] : ''),
             'effect' => $isReceived ? -1 * (float)$pay['amount'] : (float)$pay['amount'],
             'sort_id' => 'y' . $pay['id'],
+            'receipt_path' => $pay['receipt_path'],
         ];
     }
 
