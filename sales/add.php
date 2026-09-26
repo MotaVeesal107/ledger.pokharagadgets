@@ -8,7 +8,7 @@ require_once __DIR__ . '/../includes/accounts.php';
 require_login();
 
 $customers = $pdo->query("SELECT id, name FROM parties WHERE type = 'customer' ORDER BY name")->fetchAll();
-$products = $pdo->query('SELECT id, name, sku, is_serialized, sell_price_ref FROM products ORDER BY name')->fetchAll();
+$products = $pdo->query('SELECT id, name, sku, barcode, is_serialized, sell_price_ref FROM products ORDER BY name')->fetchAll();
 $accounts = $pdo->query('SELECT id, name FROM accounts ORDER BY name')->fetchAll();
 $settings = get_settings($pdo);
 
@@ -101,7 +101,10 @@ require __DIR__ . '/../includes/header.php';
   <div class="card p-3 mb-3">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <div class="fw-semibold">Items</div>
-      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addItemRow()">+ Add item</button>
+      <div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openScanner()">📷 Scan barcode</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addItemRow()">+ Add item</button>
+      </div>
     </div>
     <table class="table" id="items-table">
       <thead><tr><th style="width:22%">Product</th><th style="width:8%">Qty</th><th style="width:12%">Sell price</th><th style="width:9%">Disc. %</th><th>Serials (select exactly Qty)</th><th style="width:12%" class="text-end">Line total</th><th></th></tr></thead>
@@ -132,9 +135,27 @@ require __DIR__ . '/../includes/header.php';
   <a href="/sales/index.php" class="btn btn-link">Cancel</a>
 </form>
 
+<style>
+  .scan-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:2000; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .scan-box{ background:#fff; border-radius:8px; padding:16px; max-width:420px; width:100%; }
+  #scan-reader{ width:100%; }
+  #scan-reader video{ width:100%; border-radius:4px; }
+</style>
+<div class="scan-overlay" id="scan-overlay" style="display:none;">
+  <div class="scan-box">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="fw-semibold">Scan a barcode</div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="closeScanner()">Done</button>
+    </div>
+    <div id="scan-reader"></div>
+    <div id="scan-status" class="small text-muted mt-2">Point the camera at a barcode.</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 const PRODUCTS = <?= json_encode(array_map(fn($p) => [
-    'id' => (int)$p['id'], 'name' => $p['name'], 'sku' => $p['sku'],
+    'id' => (int)$p['id'], 'name' => $p['name'], 'sku' => $p['sku'], 'barcode' => $p['barcode'],
     'serialized' => (bool)$p['is_serialized'], 'price' => (float)$p['sell_price_ref'],
     'stock' => (int)$p['available_stock'], 'serials' => $p['serials'],
 ], $products)) ?>;
@@ -290,6 +311,70 @@ function checkPayments(total) {
     el.className = 'small text-danger';
     el.textContent = `Payments (${fmt(sum)}) must add up to the total (${fmt(total)}).`;
   }
+}
+
+let html5QrCode = null;
+let lastScan = { code: null, time: 0 };
+
+function openScanner() {
+  document.getElementById('scan-overlay').style.display = 'flex';
+  const status = document.getElementById('scan-status');
+  status.textContent = 'Starting camera...';
+  status.className = 'small text-muted mt-2';
+  html5QrCode = new Html5Qrcode('scan-reader');
+  html5QrCode.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 250, height: 150 } },
+    onScanSuccess,
+    () => {}
+  ).catch(err => {
+    status.textContent = 'Could not start the camera: ' + err;
+    status.className = 'small text-danger mt-2';
+  });
+}
+
+function closeScanner() {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
+    html5QrCode = null;
+  }
+  document.getElementById('scan-overlay').style.display = 'none';
+}
+
+function onScanSuccess(decodedText) {
+  const now = Date.now();
+  if (decodedText === lastScan.code && now - lastScan.time < 2000) return;
+  lastScan = { code: decodedText, time: now };
+
+  const status = document.getElementById('scan-status');
+  const product = PRODUCTS.find(p => (p.barcode && p.barcode === decodedText) || (p.sku && p.sku === decodedText));
+  if (!product) {
+    status.textContent = `No product matches "${decodedText}". Try again.`;
+    status.className = 'small text-danger mt-2';
+    return;
+  }
+
+  let matched = false;
+  document.querySelectorAll('#items-body tr').forEach(tr => {
+    const select = tr.querySelector('.product-select');
+    if (matched || parseInt(select.value) !== product.id) return;
+    const qtyInput = tr.querySelector('.qty-input');
+    qtyInput.value = (parseInt(qtyInput.value) || 0) + 1;
+    onQtyChange(qtyInput);
+    matched = true;
+  });
+
+  if (!matched) {
+    addItemRow();
+    const rows = document.querySelectorAll('#items-body tr');
+    const tr = rows[rows.length - 1];
+    const select = tr.querySelector('.product-select');
+    select.value = product.id;
+    onProductChange(select);
+  }
+
+  status.textContent = `Added: ${product.name}`;
+  status.className = 'small text-success mt-2';
 }
 
 addItemRow();
