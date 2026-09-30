@@ -5,6 +5,7 @@
  */
 $active = $active ?? '';
 $user = current_user();
+$__shopSettings = get_settings($pdo);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -17,8 +18,25 @@ $user = current_user();
 </head>
 <body>
 <div class="app-shell">
+  <div class="mobile-topbar no-print">
+    <button type="button" class="menu-toggle" onclick="document.querySelector('.sidebar').classList.add('open'); document.querySelector('.sidebar-backdrop').classList.add('show');" aria-label="Open menu">☰</button>
+    <span class="mobile-brand">
+      <?php if (!empty($__shopSettings['logo_path'])): ?><img src="/<?= e($__shopSettings['logo_path']) ?>" alt="" class="mobile-logo">
+      <?php else: ?><span class="swatch"></span><?php endif; ?>
+      <?= e(APP_NAME) ?>
+    </span>
+  </div>
+  <div class="sidebar-backdrop no-print" onclick="document.querySelector('.sidebar').classList.remove('open'); this.classList.remove('show');"></div>
   <nav class="sidebar no-print">
-    <div class="brand"><span class="swatch"></span> <?= e(APP_NAME) ?></div>
+    <button type="button" class="sidebar-close no-print" onclick="document.querySelector('.sidebar').classList.remove('open'); document.querySelector('.sidebar-backdrop').classList.remove('show');" aria-label="Close menu">&times;</button>
+    <div class="brand">
+      <?php if (!empty($__shopSettings['logo_path'])): ?>
+        <img src="/<?= e($__shopSettings['logo_path']) ?>" alt="<?= e(APP_NAME) ?>" class="brand-logo">
+      <?php else: ?>
+        <span class="swatch"></span>
+      <?php endif; ?>
+      <?= e(APP_NAME) ?>
+    </div>
 
     <div class="nav-section-label">Manage</div>
     <a class="nav-link<?= $active === 'dashboard' ? ' active' : '' ?>" href="/dashboard/index.php">Dashboard</a>

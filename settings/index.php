@@ -2,25 +2,45 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/uploads.php';
 require_admin();
 
+$error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
-    $stmt = $pdo->prepare(
-        'UPDATE settings SET shop_name = ?, pan_number = ?, address = ?, phone = ?,
-         vat_enabled = ?, vat_rate = ?, show_cost_to_staff = ? WHERE id = 1'
-    );
-    $stmt->execute([
-        trim($_POST['shop_name']) ?: 'Pokhara Gadgets',
-        trim($_POST['pan_number']) ?: null,
-        trim($_POST['address']) ?: null,
-        trim($_POST['phone']) ?: null,
-        isset($_POST['vat_enabled']) ? 1 : 0,
-        (float)$_POST['vat_rate'],
-        isset($_POST['show_cost_to_staff']) ? 1 : 0,
-    ]);
-    flash_set('success', 'Settings saved.');
-    redirect('/settings/index.php');
+    try {
+        $settings = $pdo->query('SELECT * FROM settings WHERE id = 1')->fetch();
+        $logoPath = $settings['logo_path'];
+        if (!empty($_POST['remove_logo'])) {
+            delete_receipt_file($logoPath);
+            $logoPath = null;
+        } else {
+            $newLogo = save_logo_upload('logo');
+            if ($newLogo) {
+                delete_receipt_file($logoPath);
+                $logoPath = $newLogo;
+            }
+        }
+
+        $stmt = $pdo->prepare(
+            'UPDATE settings SET shop_name = ?, logo_path = ?, pan_number = ?, address = ?, phone = ?,
+             vat_enabled = ?, vat_rate = ?, show_cost_to_staff = ? WHERE id = 1'
+        );
+        $stmt->execute([
+            trim($_POST['shop_name']) ?: 'Pokhara Gadgets',
+            $logoPath,
+            trim($_POST['pan_number']) ?: null,
+            trim($_POST['address']) ?: null,
+            trim($_POST['phone']) ?: null,
+            isset($_POST['vat_enabled']) ? 1 : 0,
+            (float)$_POST['vat_rate'],
+            isset($_POST['show_cost_to_staff']) ? 1 : 0,
+        ]);
+        flash_set('success', 'Settings saved.');
+        redirect('/settings/index.php');
+    } catch (InvalidArgumentException $e) {
+        $error = $e->getMessage();
+    }
 }
 
 $settings = $pdo->query('SELECT * FROM settings WHERE id = 1')->fetch();
@@ -37,11 +57,23 @@ require __DIR__ . '/../includes/header.php';
 </div>
 
 <div class="card p-4" style="max-width:640px;">
-  <form method="post">
+  <?php if ($error): ?><div class="alert alert-danger py-2"><?= e($error) ?></div><?php endif; ?>
+  <form method="post" enctype="multipart/form-data">
     <?= csrf_field() ?>
     <div class="mb-3">
       <label class="form-label">Shop name</label>
       <input type="text" name="shop_name" class="form-control" value="<?= e($settings['shop_name']) ?>" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Shop logo</label>
+      <?php if (!empty($settings['logo_path'])): ?>
+        <div class="mb-2 d-flex align-items-center gap-2">
+          <img src="/<?= e($settings['logo_path']) ?>" alt="Current logo" style="height:48px;border-radius:4px;border:1px solid #ddd;">
+          <label class="small text-danger"><input type="checkbox" name="remove_logo" value="1"> Remove logo</label>
+        </div>
+      <?php endif; ?>
+      <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" class="form-control">
+      <div class="form-text">Shown in the sidebar and on printed invoices. JPG, PNG, or WEBP, up to 2MB.</div>
     </div>
     <div class="mb-3">
       <label class="form-label">PAN number</label>

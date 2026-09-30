@@ -17,6 +17,20 @@ const RECEIPT_ALLOWED_MIME = [
     'application/pdf' => 'pdf',
 ];
 
+const LOGO_UPLOAD_DIR = __DIR__ . '/../uploads/logo';
+const LOGO_PUBLIC_DIR = 'uploads/logo';
+const LOGO_MAX_BYTES = 2 * 1024 * 1024; // 2MB
+
+const PHOTO_UPLOAD_DIR = __DIR__ . '/../uploads/products';
+const PHOTO_PUBLIC_DIR = 'uploads/products';
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024; // 5MB
+
+const IMAGE_ALLOWED_MIME = [
+    'image/jpeg' => 'jpg',
+    'image/png' => 'png',
+    'image/webp' => 'webp',
+];
+
 /**
  * Saves an uploaded receipt file from $_FILES[$field] and returns its
  * public relative path (e.g. "uploads/receipts/abc123.jpg"), or null if no
@@ -58,7 +72,7 @@ function save_receipt_upload($field) {
     return RECEIPT_PUBLIC_DIR . '/' . $filename;
 }
 
-/** Deletes a previously stored receipt file, if it exists. Safe to call with null. */
+/** Deletes a previously stored uploaded file (receipt, logo, or product photo), if it exists. Safe to call with null. */
 function delete_receipt_file($publicPath) {
     if (!$publicPath) {
         return;
@@ -69,9 +83,9 @@ function delete_receipt_file($publicPath) {
     }
 }
 
-/** Writes an .htaccess into the upload directory blocking script execution and directory listing. */
-function ensure_upload_dir_protected() {
-    $htaccess = RECEIPT_UPLOAD_DIR . '/.htaccess';
+/** Writes an .htaccess into an upload directory blocking script execution and directory listing. */
+function ensure_upload_dir_protected($dir = RECEIPT_UPLOAD_DIR) {
+    $htaccess = $dir . '/.htaccess';
     if (file_exists($htaccess)) {
         return;
     }
@@ -82,4 +96,58 @@ function ensure_upload_dir_protected() {
         . "    <IfModule !mod_authz_core.c>\n        Deny from all\n    </IfModule>\n"
         . "</FilesMatch>\n";
     @file_put_contents($htaccess, $contents);
+}
+
+/**
+ * Saves an uploaded shop logo image and returns its public relative path, or
+ * null if no file was chosen. Throws InvalidArgumentException on an
+ * invalid/oversized file. Image only (no PDF) — this is displayed inline.
+ */
+function save_logo_upload($field) {
+    return save_image_upload($field, LOGO_UPLOAD_DIR, LOGO_PUBLIC_DIR, LOGO_MAX_BYTES, 'Logo');
+}
+
+/**
+ * Saves an uploaded product photo and returns its public relative path, or
+ * null if no file was chosen. Throws InvalidArgumentException on an
+ * invalid/oversized file.
+ */
+function save_product_photo_upload($field) {
+    return save_image_upload($field, PHOTO_UPLOAD_DIR, PHOTO_PUBLIC_DIR, PHOTO_MAX_BYTES, 'Photo');
+}
+
+/** Shared image-upload logic behind save_logo_upload() and save_product_photo_upload(). */
+function save_image_upload($field, $uploadDir, $publicDir, $maxBytes, $label) {
+    if (empty($_FILES[$field]) || $_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    $file = $_FILES[$field];
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new InvalidArgumentException("The {$label} file failed to upload. Please try again.");
+    }
+    if ($file['size'] > $maxBytes) {
+        throw new InvalidArgumentException("{$label} file is too large (max " . round($maxBytes / 1024 / 1024) . "MB).");
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    if (!isset(IMAGE_ALLOWED_MIME[$mime])) {
+        throw new InvalidArgumentException("{$label} must be a JPG, PNG, or WEBP image.");
+    }
+
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+    ensure_upload_dir_protected($uploadDir);
+
+    $filename = bin2hex(random_bytes(16)) . '.' . IMAGE_ALLOWED_MIME[$mime];
+    $destination = $uploadDir . '/' . $filename;
+
+    if (!move_uploaded_file($file['tmp_name'], $destination)) {
+        throw new InvalidArgumentException('Could not save the uploaded ' . strtolower($label) . '.');
+    }
+
+    return $publicDir . '/' . $filename;
 }

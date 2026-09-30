@@ -94,7 +94,7 @@ require __DIR__ . '/../includes/header.php';
   <table class="table mb-0">
     <thead>
       <tr>
-        <th>Product</th><th>Category</th><th>Brand</th><th>Device Model</th><th>SKU</th><th>Stock</th><th>Unit</th>
+        <th></th><th>Product</th><th>Category</th><th>Brand</th><th>Device Model</th><th>SKU</th><th>Stock</th><th>Unit</th>
         <?php if ($showCost): ?><th>Cost</th><?php endif; ?>
         <th>Sell Price</th><th>Reorder</th><th>Status</th><th></th>
       </tr>
@@ -102,6 +102,13 @@ require __DIR__ . '/../includes/header.php';
     <tbody>
       <?php foreach ($products as $p): $stock = (int)$p['stock']; ?>
       <tr>
+        <td>
+          <?php if (!empty($p['photo_path'])): ?>
+            <img src="/<?= e($p['photo_path']) ?>" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:4px;border:1px solid #ddd;">
+          <?php else: ?>
+            <div class="text-muted small" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#f2f2ee;border-radius:4px;">—</div>
+          <?php endif; ?>
+        </td>
         <td>
           <?= e($p['name']) ?>
           <?php if ($p['is_serialized']): ?><span class="badge text-bg-light border">serialized</span><?php endif; ?>
@@ -130,7 +137,7 @@ require __DIR__ . '/../includes/header.php';
       </tr>
       <?php endforeach; ?>
       <?php if (!$products): ?>
-      <tr><td colspan="12" class="text-center text-muted py-4">No products yet.</td></tr>
+      <tr><td colspan="13" class="text-center text-muted py-4">No products yet.</td></tr>
       <?php endif; ?>
     </tbody>
   </table>

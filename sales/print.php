@@ -38,8 +38,9 @@ $isTaxInvoice = (float)$sale['vat_amount'] > 0;
   th:last-child, td:last-child, th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { text-align: right; }
   .totals td { border-bottom: none; }
   .grand { font-weight: bold; font-size: 1.05rem; }
-  .header-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
   .bill-label { font-size: 1.1rem; font-weight: bold; text-align: right; }
+  .shop-logo { height: 48px; max-width: 180px; object-fit: contain; margin-bottom: 0.4rem; }
   @media print { .no-print { display: none; } body { margin: 0; } }
 </style>
 </head>
@@ -47,6 +48,9 @@ $isTaxInvoice = (float)$sale['vat_amount'] > 0;
   <button class="no-print" onclick="window.print()">Print</button>
   <div class="header-row">
     <div>
+      <?php if (!empty($settings['logo_path'])): ?>
+      <div><img src="/<?= e($settings['logo_path']) ?>" alt="" class="shop-logo"></div>
+      <?php endif; ?>
       <h1><?= e($settings['shop_name']) ?></h1>
       <?php if ($settings['pan_number']): ?><div class="muted">PAN: <?= e($settings['pan_number']) ?></div><?php endif; ?>
       <?php if ($settings['address']): ?><div class="muted"><?= e($settings['address']) ?></div><?php endif; ?>

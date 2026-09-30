@@ -8,7 +8,7 @@ require_once __DIR__ . '/../includes/accounts.php';
 require_login();
 
 $customers = $pdo->query("SELECT id, name FROM parties WHERE type = 'customer' ORDER BY name")->fetchAll();
-$products = $pdo->query('SELECT id, name, sku, barcode, is_serialized, sell_price_ref FROM products ORDER BY name')->fetchAll();
+$products = $pdo->query('SELECT id, name, sku, barcode, photo_path, is_serialized, sell_price_ref FROM products ORDER BY name')->fetchAll();
 $accounts = $pdo->query('SELECT id, name FROM accounts ORDER BY name')->fetchAll();
 $settings = get_settings($pdo);
 
@@ -140,6 +140,14 @@ require __DIR__ . '/../includes/header.php';
   .scan-box{ background:#fff; border-radius:8px; padding:16px; max-width:420px; width:100%; }
   #scan-reader{ width:100%; }
   #scan-reader video{ width:100%; border-radius:4px; }
+
+  .product-picker{ position:relative; }
+  .product-search-results{ display:none; position:absolute; z-index:50; top:100%; left:0; right:0; background:#fff; border:1px solid #ddd; border-radius:4px; max-height:240px; overflow-y:auto; box-shadow:0 4px 10px rgba(0,0,0,.1); }
+  .product-search-results.show{ display:block; }
+  .product-result{ display:flex; align-items:center; gap:.5rem; padding:.4rem .6rem; cursor:pointer; font-size:.85rem; }
+  .product-result:hover, .product-result.active{ background:#f2f2ee; }
+  .product-result img, .product-result .ph{ width:28px; height:28px; object-fit:cover; border-radius:3px; border:1px solid #ddd; flex-shrink:0; background:#f2f2ee; }
+  .product-result .stock-hint{ color:#888; font-size:.78rem; }
 </style>
 <div class="scan-overlay" id="scan-overlay" style="display:none;">
   <div class="scan-box">
@@ -155,7 +163,7 @@ require __DIR__ . '/../includes/header.php';
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 const PRODUCTS = <?= json_encode(array_map(fn($p) => [
-    'id' => (int)$p['id'], 'name' => $p['name'], 'sku' => $p['sku'], 'barcode' => $p['barcode'],
+    'id' => (int)$p['id'], 'name' => $p['name'], 'sku' => $p['sku'], 'barcode' => $p['barcode'], 'photo' => $p['photo_path'],
     'serialized' => (bool)$p['is_serialized'], 'price' => (float)$p['sell_price_ref'],
     'stock' => (int)$p['available_stock'], 'serials' => $p['serials'],
 ], $products)) ?>;
@@ -169,20 +177,19 @@ document.getElementById('party-select').addEventListener('change', function () {
   document.getElementById('walkin-name-wrap').style.display = this.value ? 'none' : '';
 });
 
-function productOptions(selectedId) {
-  let html = '<option value="">Select product...</option>';
-  for (const p of PRODUCTS) {
-    const label = `${p.name}${p.sku ? ' (' + p.sku + ')' : ''} — ${p.stock} in stock`;
-    html += `<option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>${label}</option>`;
-  }
-  return html;
-}
-
 function addItemRow() {
   const i = itemIndex++;
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><select name="items[${i}][product_id]" class="form-select form-select-sm product-select" onchange="onProductChange(this)">${productOptions(null)}</select></td>
+    <td>
+      <div class="product-picker">
+        <input type="text" class="form-control form-control-sm product-search-input" placeholder="Search product..." autocomplete="off"
+               oninput="onProductSearchInput(this)" onfocus="onProductSearchInput(this)"
+               onblur="setTimeout(() => hideProductResults(this), 150)" onkeydown="onProductSearchKeydown(event, this)">
+        <input type="hidden" class="product-select" name="items[${i}][product_id]" onchange="onProductChange(this)">
+        <div class="product-search-results"></div>
+      </div>
+    </td>
     <td><input type="number" min="1" value="1" name="items[${i}][qty]" class="form-control form-control-sm qty-input" oninput="onQtyChange(this)"></td>
     <td><input type="number" step="0.01" min="0" value="0" name="items[${i}][sell_price]" class="form-control form-control-sm price-input" oninput="recalc()"></td>
     <td><input type="number" step="0.01" min="0" max="100" value="0" name="items[${i}][discount_percent]" class="form-control form-control-sm discount-input" oninput="recalc()"></td>
@@ -193,9 +200,68 @@ function addItemRow() {
   document.getElementById('items-body').appendChild(tr);
 }
 
+function productSearchMatches(query) {
+  const q = query.trim().toLowerCase();
+  if (q === '') return PRODUCTS.slice(0, 8);
+  return PRODUCTS.filter(p =>
+    p.name.toLowerCase().includes(q) ||
+    (p.sku && p.sku.toLowerCase().includes(q)) ||
+    (p.barcode && p.barcode.toLowerCase().includes(q))
+  ).slice(0, 8);
+}
+
+function onProductSearchInput(input) {
+  const box = input.parentElement.querySelector('.product-search-results');
+  const matches = productSearchMatches(input.value);
+  if (matches.length === 0) {
+    box.innerHTML = '<div class="product-result text-muted">No matching product</div>';
+  } else {
+    box.innerHTML = matches.map(p => `
+      <div class="product-result" data-id="${p.id}">
+        ${p.photo ? `<img src="/${p.photo}">` : '<div class="ph"></div>'}
+        <div>
+          <div>${p.name}${p.sku ? ' <span class="text-muted small">(' + p.sku + ')</span>' : ''}</div>
+          <div class="stock-hint">${p.stock} in stock</div>
+        </div>
+      </div>
+    `).join('');
+    box.querySelectorAll('.product-result[data-id]').forEach(el => {
+      el.addEventListener('mousedown', e => { e.preventDefault(); selectProduct(input, parseInt(el.dataset.id)); });
+    });
+  }
+  box.classList.add('show');
+}
+
+function hideProductResults(input) {
+  input.parentElement.querySelector('.product-search-results').classList.remove('show');
+}
+
+function onProductSearchKeydown(e, input) {
+  const box = input.parentElement.querySelector('.product-search-results');
+  const items = Array.from(box.querySelectorAll('.product-result[data-id]'));
+  if (!items.length) return;
+  let idx = items.findIndex(el => el.classList.contains('active'));
+  if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(idx + 1, items.length - 1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); idx = Math.max(idx - 1, 0); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (idx >= 0) selectProduct(input, parseInt(items[idx].dataset.id)); return; }
+  else return;
+  items.forEach(el => el.classList.remove('active'));
+  items[idx].classList.add('active');
+  items[idx].scrollIntoView({ block: 'nearest' });
+}
+
+function selectProduct(searchInput, productId) {
+  const hidden = searchInput.closest('.product-picker').querySelector('.product-select');
+  hidden.value = productId;
+  hideProductResults(searchInput);
+  onProductChange(hidden);
+}
+
 function onProductChange(select) {
   const tr = select.closest('tr');
   const product = PRODUCTS.find(p => p.id === parseInt(select.value));
+  const searchInput = select.closest('.product-picker').querySelector('.product-search-input');
+  searchInput.value = product ? `${product.name}${product.sku ? ' (' + product.sku + ')' : ''}` : '';
   tr.querySelector('.price-input').value = product ? product.price : 0;
   renderSerials(tr, product);
   recalc();

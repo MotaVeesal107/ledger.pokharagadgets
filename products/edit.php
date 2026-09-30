@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/stock.php';
+require_once __DIR__ . '/../includes/uploads.php';
 require_login();
 
 $id = (int)($_GET['id'] ?? 0);
@@ -23,14 +24,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Product name is required.';
     } else {
         try {
+            $photoPath = $product['photo_path'];
+            if (!empty($_POST['remove_photo'])) {
+                delete_receipt_file($photoPath);
+                $photoPath = null;
+            } else {
+                $newPhoto = save_product_photo_upload('photo');
+                if ($newPhoto) {
+                    delete_receipt_file($photoPath);
+                    $photoPath = $newPhoto;
+                }
+            }
+
             $sku = trim($_POST['sku'] ?? '') ?: generate_sku($category, $id);
             $stmt = $pdo->prepare(
-                'UPDATE products SET name=?, sku=?, barcode=?, category=?, brand=?, device_model=?, unit=?, low_stock_threshold=?, warranty_period=?, is_serialized=?, cost_price_ref=?, sell_price_ref=? WHERE id=?'
+                'UPDATE products SET name=?, sku=?, barcode=?, photo_path=?, category=?, brand=?, device_model=?, unit=?, low_stock_threshold=?, warranty_period=?, is_serialized=?, cost_price_ref=?, sell_price_ref=? WHERE id=?'
             );
             $stmt->execute([
                 $name,
                 $sku,
                 trim($_POST['barcode']) ?: null,
+                $photoPath,
                 $category,
                 trim($_POST['brand']) ?: null,
                 trim($_POST['device_model']) ?: null,
@@ -46,6 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('/products/index.php');
         } catch (PDOException $e) {
             $error = 'That SKU is already in use by another product.';
+        } catch (InvalidArgumentException $e) {
+            $error = $e->getMessage();
         }
     }
     $product = array_merge($product, $_POST);
@@ -75,10 +91,21 @@ require __DIR__ . '/../includes/header.php';
     <div class="stat-value"><?= $stock ?> <?= e($product['unit']) ?></div>
     <div class="form-text">Stock changes only through Purchases, Sales, and Returns/Adjustments.</div>
   </div>
-  <form method="post">
+  <form method="post" enctype="multipart/form-data">
     <?= csrf_field() ?>
     <div class="mb-3"><label class="form-label">Product name</label>
       <input type="text" name="name" class="form-control" value="<?= e($product['name']) ?>" required></div>
+    <div class="mb-3">
+      <label class="form-label">Photo</label>
+      <?php if (!empty($product['photo_path'])): ?>
+        <div class="mb-2 d-flex align-items-center gap-2">
+          <img src="/<?= e($product['photo_path']) ?>" alt="" style="height:64px;border-radius:4px;border:1px solid #ddd;">
+          <label class="small text-danger"><input type="checkbox" name="remove_photo" value="1"> Remove photo</label>
+        </div>
+      <?php endif; ?>
+      <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" class="form-control">
+      <div class="form-text">Optional. JPG, PNG, or WEBP, up to 5MB.</div>
+    </div>
     <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">SKU</label>
         <input type="text" name="sku" class="form-control" value="<?= e($product['sku']) ?>" placeholder="Leave blank to auto-generate">

@@ -5,11 +5,19 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/purchases.php';
 require_login();
 
-$suppliers = $pdo->query("SELECT id, name FROM parties WHERE type = 'supplier' ORDER BY name")->fetchAll();
-$products = $pdo->query('SELECT id, name, sku, barcode, photo_path, is_serialized, cost_price_ref FROM products ORDER BY name')->fetchAll();
+$id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+$stmt = $pdo->prepare('SELECT * FROM purchases WHERE id = ?');
+$stmt->execute([$id]);
+$purchase = $stmt->fetch();
+if (!$purchase) {
+    flash_set('error', 'Purchase not found.');
+    redirect('/purchases/index.php');
+}
+
+$blockers = can_modify_purchase($pdo, $id);
 
 $error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$blockers) {
     verify_csrf();
     try {
         if (empty($_POST['party_id'])) {
@@ -30,32 +38,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
         }
 
-        $purchaseId = create_purchase($pdo, [
+        update_purchase($pdo, $id, [
             'party_id' => (int)$_POST['party_id'],
             'bill_ref' => trim($_POST['bill_ref'] ?? ''),
             'purchase_date' => $_POST['purchase_date'] ?: date('Y-m-d'),
             'note' => trim($_POST['note'] ?? ''),
-            'created_by' => current_user()['id'],
             'items' => $items,
         ]);
 
-        flash_set('success', 'Purchase recorded and stock updated.');
-        redirect('/purchases/view.php?id=' . $purchaseId);
+        flash_set('success', 'Purchase updated.');
+        redirect('/purchases/view.php?id=' . $id);
     } catch (InvalidArgumentException $e) {
         $error = $e->getMessage();
     }
 }
 
-$pageTitle = 'New Purchase';
+$suppliers = $pdo->query("SELECT id, name FROM parties WHERE type = 'supplier' ORDER BY name")->fetchAll();
+$products = $pdo->query('SELECT id, name, sku, barcode, photo_path, is_serialized, cost_price_ref FROM products ORDER BY name')->fetchAll();
+
+// Group this purchase's item rows by product into one form row each (matching
+// how they're entered: one row per product, serials listed together).
+$stmt = $pdo->prepare('SELECT * FROM purchase_items WHERE purchase_id = ? ORDER BY id');
+$stmt->execute([$id]);
+$existingRows = [];
+foreach ($stmt->fetchAll() as $it) {
+    $pid = (int)$it['product_id'];
+    if (!isset($existingRows[$pid])) {
+        $existingRows[$pid] = [
+            'product_id' => $pid, 'qty' => 0, 'cost_price' => (float)$it['cost_price'],
+            'discount_percent' => (float)$it['discount_percent'], 'serials' => [],
+        ];
+    }
+    $existingRows[$pid]['qty'] += (int)$it['qty'];
+    if ($it['serial_no']) {
+        $existingRows[$pid]['serials'][] = $it['serial_no'];
+    }
+}
+$existingRows = array_values($existingRows);
+
+$pageTitle = 'Edit Purchase';
 $active = 'purchases';
 require __DIR__ . '/../includes/header.php';
 ?>
-<div class="topbar"><div class="page-title h4">New Purchase</div></div>
+<div class="topbar"><div class="page-title h4">Edit Purchase #<?= $id ?></div></div>
+
+<?php if ($blockers): ?>
+<div class="alert alert-warning">
+  <div class="fw-semibold mb-1">This purchase can no longer be edited or deleted.</div>
+  <ul class="mb-0">
+    <?php foreach ($blockers as $b): ?><li><?= e($b) ?></li><?php endforeach; ?>
+  </ul>
+</div>
+<a href="/purchases/view.php?id=<?= $id ?>" class="btn btn-outline-secondary">Back to purchase</a>
+<?php else: ?>
 
 <?php if ($error): ?><div class="alert alert-danger py-2"><?= e($error) ?></div><?php endif; ?>
 
 <form method="post" id="purchase-form">
   <?= csrf_field() ?>
+  <input type="hidden" name="id" value="<?= $id ?>">
   <div class="card p-3 mb-3">
     <div class="row g-3">
       <div class="col-md-4">
@@ -63,22 +104,21 @@ require __DIR__ . '/../includes/header.php';
         <select name="party_id" class="form-select" required>
           <option value="">Select supplier...</option>
           <?php foreach ($suppliers as $s): ?>
-          <option value="<?= (int)$s['id'] ?>"><?= e($s['name']) ?></option>
+          <option value="<?= (int)$s['id'] ?>" <?= (int)$s['id'] === (int)$purchase['party_id'] ? 'selected' : '' ?>><?= e($s['name']) ?></option>
           <?php endforeach; ?>
         </select>
-        <?php if (!$suppliers): ?><div class="form-text text-danger"><a href="/parties/add.php?type=supplier">Add a supplier</a> first.</div><?php endif; ?>
       </div>
       <div class="col-md-3">
         <label class="form-label">Bill / Reference No.</label>
-        <input type="text" name="bill_ref" class="form-control">
+        <input type="text" name="bill_ref" class="form-control" value="<?= e($purchase['bill_ref']) ?>">
       </div>
       <div class="col-md-3">
         <label class="form-label">Date</label>
-        <input type="date" name="purchase_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
+        <input type="date" name="purchase_date" class="form-control" value="<?= e($purchase['purchase_date']) ?>" required>
       </div>
       <div class="col-md-2">
         <label class="form-label">Note</label>
-        <input type="text" name="note" class="form-control">
+        <input type="text" name="note" class="form-control" value="<?= e($purchase['note']) ?>">
       </div>
     </div>
   </div>
@@ -98,8 +138,8 @@ require __DIR__ . '/../includes/header.php';
     </table>
   </div>
 
-  <button type="submit" class="btn btn-accent">Save purchase</button>
-  <a href="/purchases/index.php" class="btn btn-link">Cancel</a>
+  <button type="submit" class="btn btn-accent">Save changes</button>
+  <a href="/purchases/view.php?id=<?= $id ?>" class="btn btn-link">Cancel</a>
 </form>
 
 <style>
@@ -114,7 +154,6 @@ require __DIR__ . '/../includes/header.php';
   .product-result{ display:flex; align-items:center; gap:.5rem; padding:.4rem .6rem; cursor:pointer; font-size:.85rem; }
   .product-result:hover, .product-result.active{ background:#f2f2ee; }
   .product-result img, .product-result .ph{ width:28px; height:28px; object-fit:cover; border-radius:3px; border:1px solid #ddd; flex-shrink:0; background:#f2f2ee; }
-  .product-result .stock-hint{ color:#888; font-size:.78rem; }
 </style>
 <div class="scan-overlay" id="scan-overlay" style="display:none;">
   <div class="scan-box">
@@ -133,10 +172,11 @@ const PRODUCTS = <?= json_encode(array_map(fn($p) => [
     'id' => (int)$p['id'], 'name' => $p['name'], 'sku' => $p['sku'], 'barcode' => $p['barcode'], 'photo' => $p['photo_path'],
     'serialized' => (bool)$p['is_serialized'], 'cost' => (float)$p['cost_price_ref'],
 ], $products)) ?>;
+const EXISTING_ROWS = <?= json_encode($existingRows) ?>;
 
 let rowIndex = 0;
 
-function addItemRow() {
+function addItemRow(prefill) {
   const i = rowIndex++;
   const tr = document.createElement('tr');
   tr.innerHTML = `
@@ -149,14 +189,27 @@ function addItemRow() {
         <div class="product-search-results"></div>
       </div>
     </td>
-    <td><input type="number" min="1" value="1" name="items[${i}][qty]" class="form-control form-control-sm qty-input" oninput="recalc(this)"></td>
-    <td><input type="number" step="0.01" min="0" value="0" name="items[${i}][cost_price]" class="form-control form-control-sm cost-input" oninput="recalc(this)"></td>
-    <td><input type="number" step="0.01" min="0" max="100" value="0" name="items[${i}][discount_percent]" class="form-control form-control-sm discount-input" oninput="recalc(this)"></td>
-    <td><textarea name="items[${i}][serials]" class="form-control form-control-sm serials-input" rows="1" placeholder="Only for serialized items" disabled></textarea></td>
+    <td><input type="number" min="1" value="${prefill ? prefill.qty : 1}" name="items[${i}][qty]" class="form-control form-control-sm qty-input" oninput="recalc(this)"></td>
+    <td><input type="number" step="0.01" min="0" value="${prefill ? prefill.cost_price : 0}" name="items[${i}][cost_price]" class="form-control form-control-sm cost-input" oninput="recalc(this)"></td>
+    <td><input type="number" step="0.01" min="0" max="100" value="${prefill ? prefill.discount_percent : 0}" name="items[${i}][discount_percent]" class="form-control form-control-sm discount-input" oninput="recalc(this)"></td>
+    <td><textarea name="items[${i}][serials]" class="form-control form-control-sm serials-input" rows="1" placeholder="Only for serialized items" disabled>${prefill ? prefill.serials.join('\n') : ''}</textarea></td>
     <td class="text-end line-total align-middle">Rs. 0.00</td>
     <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); recalcTotal();">&times;</button></td>
   `;
   document.getElementById('items-body').appendChild(tr);
+
+  if (prefill) {
+    // Wire up the picked product without letting onProductChange overwrite
+    // the recorded cost price with the product's current reference cost.
+    const hidden = tr.querySelector('.product-select');
+    const product = PRODUCTS.find(p => p.id === prefill.product_id);
+    hidden.value = prefill.product_id;
+    tr.querySelector('.product-search-input').value = product ? `${product.name}${product.sku ? ' (' + product.sku + ')' : ''}` : '';
+    const serialsField = tr.querySelector('.serials-input');
+    serialsField.disabled = !(product && product.serialized);
+    serialsField.placeholder = (product && product.serialized) ? 'One serial/IMEI per line, must match quantity' : 'Only for serialized items';
+    recalc(hidden);
+  }
 }
 
 function productSearchMatches(query) {
@@ -313,6 +366,12 @@ function onScanSuccess(decodedText) {
   status.className = 'small text-success mt-2';
 }
 
-addItemRow();
+if (EXISTING_ROWS.length > 0) {
+  EXISTING_ROWS.forEach(row => addItemRow(row));
+} else {
+  addItemRow();
+}
+recalcTotal();
 </script>
+<?php endif; ?>
 <?php require __DIR__ . '/../includes/footer.php'; ?>

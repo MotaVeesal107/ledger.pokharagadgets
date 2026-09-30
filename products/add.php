@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/uploads.php';
 require_login();
 
 $showCost = can_view_cost($pdo);
@@ -24,14 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Product name is required.';
     } else {
         try {
+            $photoPath = save_product_photo_upload('photo');
             $stmt = $pdo->prepare(
-                'INSERT INTO products (name, sku, barcode, category, brand, device_model, unit, low_stock_threshold, warranty_period, is_serialized, cost_price_ref, sell_price_ref)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO products (name, sku, barcode, photo_path, category, brand, device_model, unit, low_stock_threshold, warranty_period, is_serialized, cost_price_ref, sell_price_ref)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $name,
                 trim($_POST['sku']) ?: null,
                 trim($_POST['barcode']) ?: null,
+                $photoPath,
                 $category,
                 trim($_POST['brand']) ?: null,
                 trim($_POST['device_model']) ?: null,
@@ -53,6 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('/products/index.php');
         } catch (PDOException $e) {
             $error = 'That SKU is already in use by another product.';
+        } catch (InvalidArgumentException $e) {
+            $error = $e->getMessage();
         }
     }
 }
@@ -65,10 +70,14 @@ require __DIR__ . '/../includes/header.php';
 <div class="card p-4" style="max-width:560px;">
   <?php if ($error): ?><div class="alert alert-danger py-2"><?= e($error) ?></div><?php endif; ?>
   <div class="alert alert-info py-2 small">New products start at 0 stock. Bring in stock through <strong>Purchases</strong> — quantities are never set directly on a product.</div>
-  <form method="post">
+  <form method="post" enctype="multipart/form-data">
     <?= csrf_field() ?>
     <div class="mb-3"><label class="form-label">Product name</label>
       <input type="text" name="name" class="form-control" value="<?= e($_POST['name'] ?? '') ?>" required></div>
+    <div class="mb-3"><label class="form-label">Photo</label>
+      <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" class="form-control">
+      <div class="form-text">Optional. JPG, PNG, or WEBP, up to 5MB.</div>
+    </div>
     <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">SKU</label>
         <input type="text" name="sku" class="form-control" value="<?= e($_POST['sku'] ?? '') ?>" placeholder="Leave blank to auto-generate">

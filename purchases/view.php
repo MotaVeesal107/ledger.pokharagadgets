@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/purchases.php';
 require_login();
 
 $id = (int)($_GET['id'] ?? 0);
@@ -33,6 +34,8 @@ foreach ($items as $it) {
     }
 }
 
+$blockers = can_modify_purchase($pdo, $id);
+
 $pageTitle = 'Purchase #' . $id;
 $active = 'purchases';
 require __DIR__ . '/../includes/header.php';
@@ -42,8 +45,28 @@ require __DIR__ . '/../includes/header.php';
     <div class="page-title h4">Purchase #<?= $id ?></div>
     <div class="page-subtitle"><?= e($purchase['purchase_date']) ?> · <?= e($purchase['supplier_name']) ?> <?= $purchase['bill_ref'] ? '· Bill ' . e($purchase['bill_ref']) : '' ?></div>
   </div>
-  <a href="/parties/view.php?id=<?= (int)$purchase['party_id'] ?>" class="btn btn-outline-secondary">Supplier ledger</a>
+  <div>
+    <a href="/parties/view.php?id=<?= (int)$purchase['party_id'] ?>" class="btn btn-outline-secondary">Supplier ledger</a>
+    <?php if (!$blockers): ?>
+    <a href="/purchases/edit.php?id=<?= $id ?>" class="btn btn-outline-secondary">Edit</a>
+    <?php if (is_admin()): ?>
+    <form method="post" action="/purchases/delete.php" class="d-inline" onsubmit="return confirm('Delete this purchase? This reverses its stock and cannot be undone.');">
+      <?= csrf_field() ?>
+      <input type="hidden" name="id" value="<?= $id ?>">
+      <button class="btn btn-outline-danger">Delete</button>
+    </form>
+    <?php endif; ?>
+    <?php else: ?>
+    <button class="btn btn-outline-secondary" disabled title="<?= e(implode(' ', $blockers)) ?>">Edit</button>
+    <?php endif; ?>
+  </div>
 </div>
+
+<?php if ($blockers): ?>
+<div class="alert alert-warning py-2 small">
+  This purchase can no longer be edited or deleted: <?= e(implode(' ', $blockers)) ?>
+</div>
+<?php endif; ?>
 
 <?php if ($purchase['note']): ?><div class="alert alert-secondary py-2"><?= e($purchase['note']) ?></div><?php endif; ?>
 
