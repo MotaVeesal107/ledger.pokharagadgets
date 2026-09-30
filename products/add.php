@@ -76,7 +76,7 @@ require __DIR__ . '/../includes/header.php';
       <input type="text" name="name" class="form-control" value="<?= e($_POST['name'] ?? '') ?>" required></div>
     <div class="mb-3"><label class="form-label">Photo</label>
       <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" class="form-control">
-      <div class="form-text">Optional. JPG, PNG, or WEBP, up to 5MB.</div>
+      <div class="form-text">Optional. Roughly square works best for the list/search thumbnails — around <strong>600×600px</strong> is plenty (300×300 to 1000×1000 is fine). JPG, PNG, or WEBP, up to 5MB.</div>
     </div>
     <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">SKU</label>

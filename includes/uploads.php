@@ -25,6 +25,10 @@ const PHOTO_UPLOAD_DIR = __DIR__ . '/../uploads/products';
 const PHOTO_PUBLIC_DIR = 'uploads/products';
 const PHOTO_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
+const BRAND_UPLOAD_DIR = __DIR__ . '/../uploads/brands';
+const BRAND_PUBLIC_DIR = 'uploads/brands';
+const BRAND_MAX_BYTES = 2 * 1024 * 1024; // 2MB
+
 const IMAGE_ALLOWED_MIME = [
     'image/jpeg' => 'jpg',
     'image/png' => 'png',
@@ -114,6 +118,15 @@ function save_logo_upload($field) {
  */
 function save_product_photo_upload($field) {
     return save_image_upload($field, PHOTO_UPLOAD_DIR, PHOTO_PUBLIC_DIR, PHOTO_MAX_BYTES, 'Photo');
+}
+
+/**
+ * Saves an uploaded brand photo/logo and returns its public relative path, or
+ * null if no file was chosen. Throws InvalidArgumentException on an
+ * invalid/oversized file.
+ */
+function save_brand_photo_upload($field) {
+    return save_image_upload($field, BRAND_UPLOAD_DIR, BRAND_PUBLIC_DIR, BRAND_MAX_BYTES, 'Photo');
 }
 
 /** Shared image-upload logic behind save_logo_upload() and save_product_photo_upload(). */

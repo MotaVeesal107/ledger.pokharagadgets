@@ -96,6 +96,20 @@ CREATE TABLE products (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
+-- brands — optional photo/logo per brand, browsed from a Brands gallery.
+-- Matched to products by name (products.brand stays a plain text column, not
+-- a foreign key), so a brand can exist with a photo before or after any
+-- product actually uses that name.
+-- ----------------------------------------------------------------------------
+CREATE TABLE brands (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  photo_path VARCHAR(255) DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_brands_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
 -- purchases (stock-in header) — always against a supplier party.
 -- ----------------------------------------------------------------------------
 CREATE TABLE purchases (
