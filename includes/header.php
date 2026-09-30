@@ -15,20 +15,32 @@ $__shopSettings = get_settings($pdo);
 <title><?= e($pageTitle ?? APP_NAME) ?> · <?= APP_NAME ?></title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="/assets/css/style.css" rel="stylesheet">
+<script>
+  function openMobileMenu() {
+    document.querySelector('.sidebar').classList.add('open');
+    document.querySelector('.sidebar-backdrop').classList.add('show');
+    document.getElementById('mobile-topbar').style.visibility = 'hidden';
+  }
+  function closeMobileMenu() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.querySelector('.sidebar-backdrop').classList.remove('show');
+    document.getElementById('mobile-topbar').style.visibility = '';
+  }
+</script>
 </head>
 <body>
 <div class="app-shell">
-  <div class="mobile-topbar no-print">
-    <button type="button" class="menu-toggle" onclick="document.querySelector('.sidebar').classList.add('open'); document.querySelector('.sidebar-backdrop').classList.add('show');" aria-label="Open menu">☰</button>
+  <div class="mobile-topbar no-print" id="mobile-topbar">
+    <button type="button" class="menu-toggle" onclick="openMobileMenu()" aria-label="Open menu">☰</button>
     <span class="mobile-brand">
       <?php if (!empty($__shopSettings['logo_path'])): ?><img src="/<?= e($__shopSettings['logo_path']) ?>" alt="" class="mobile-logo">
       <?php else: ?><span class="swatch"></span><?php endif; ?>
       <?= e(APP_NAME) ?>
     </span>
   </div>
-  <div class="sidebar-backdrop no-print" onclick="document.querySelector('.sidebar').classList.remove('open'); this.classList.remove('show');"></div>
+  <div class="sidebar-backdrop no-print" onclick="closeMobileMenu()"></div>
   <nav class="sidebar no-print">
-    <button type="button" class="sidebar-close no-print" onclick="document.querySelector('.sidebar').classList.remove('open'); document.querySelector('.sidebar-backdrop').classList.remove('show');" aria-label="Close menu">&times;</button>
+    <button type="button" class="sidebar-close no-print" onclick="closeMobileMenu()" aria-label="Close menu">&times;</button>
     <div class="brand">
       <?php if (!empty($__shopSettings['logo_path'])): ?>
         <img src="/<?= e($__shopSettings['logo_path']) ?>" alt="<?= e(APP_NAME) ?>" class="brand-logo">
