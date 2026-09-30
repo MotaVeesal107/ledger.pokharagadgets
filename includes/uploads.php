@@ -29,6 +29,10 @@ const BRAND_UPLOAD_DIR = __DIR__ . '/../uploads/brands';
 const BRAND_PUBLIC_DIR = 'uploads/brands';
 const BRAND_MAX_BYTES = 2 * 1024 * 1024; // 2MB
 
+const CATEGORY_UPLOAD_DIR = __DIR__ . '/../uploads/categories';
+const CATEGORY_PUBLIC_DIR = 'uploads/categories';
+const CATEGORY_MAX_BYTES = 2 * 1024 * 1024; // 2MB
+
 const IMAGE_ALLOWED_MIME = [
     'image/jpeg' => 'jpg',
     'image/png' => 'png',
@@ -127,6 +131,15 @@ function save_product_photo_upload($field) {
  */
 function save_brand_photo_upload($field) {
     return save_image_upload($field, BRAND_UPLOAD_DIR, BRAND_PUBLIC_DIR, BRAND_MAX_BYTES, 'Photo');
+}
+
+/**
+ * Saves an uploaded category photo (e.g. "Silicone Case", "Ultra Case") and
+ * returns its public relative path, or null if no file was chosen. Throws
+ * InvalidArgumentException on an invalid/oversized file.
+ */
+function save_category_photo_upload($field) {
+    return save_image_upload($field, CATEGORY_UPLOAD_DIR, CATEGORY_PUBLIC_DIR, CATEGORY_MAX_BYTES, 'Photo');
 }
 
 /** Shared image-upload logic behind save_logo_upload() and save_product_photo_upload(). */

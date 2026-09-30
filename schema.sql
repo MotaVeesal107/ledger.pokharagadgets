@@ -112,6 +112,19 @@ CREATE TABLE brands (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
+-- categories — optional photo per category/case-style (e.g. "Silicone Case",
+-- "Ultra Case"), browsed from a Categories gallery. Same pattern as brands:
+-- matched to products by name, not a foreign key.
+-- ----------------------------------------------------------------------------
+CREATE TABLE categories (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  photo_path VARCHAR(255) DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_categories_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------------------------------------------------------
 -- purchases (stock-in header) — always against a supplier party.
 -- ----------------------------------------------------------------------------
 CREATE TABLE purchases (
