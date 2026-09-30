@@ -154,6 +154,9 @@ require __DIR__ . '/../includes/header.php';
         <td class="text-end">
           <button type="button" class="btn btn-sm btn-outline-secondary" title="Share to WhatsApp / Instagram / TikTok"
                   onclick='shareProduct(<?= json_encode($p['name'], JSON_HEX_APOS) ?>, <?= json_encode(format_currency($p['sell_price_ref']), JSON_HEX_APOS) ?>, <?= json_encode($p['photo_path'] ? '/' . $p['photo_path'] : null, JSON_HEX_APOS) ?>)'>📤</button>
+          <?php if (!empty($p['photo_path'])): ?>
+          <a href="/<?= e($p['photo_path']) ?>" download title="Save photo to your phone, then post it from inside TikTok" class="btn btn-sm btn-outline-secondary">⬇</a>
+          <?php endif; ?>
           <a href="/products/edit.php?id=<?= (int)$p['id'] ?>" class="btn btn-sm btn-outline-secondary">Edit</a>
         </td>
       </tr>

@@ -53,6 +53,9 @@ require __DIR__ . '/../includes/header.php';
       <div class="mt-auto d-flex gap-1">
         <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" title="Share to WhatsApp / Instagram / TikTok — sends the photo and customer price only, never your cost"
                 onclick='shareProduct(<?= json_encode($p['name'] . ($p['color'] ? ' - ' . $p['color'] : ''), JSON_HEX_APOS) ?>, <?= json_encode(format_currency($p['sell_price_ref']), JSON_HEX_APOS) ?>, <?= json_encode($p['photo_path'] ? '/' . $p['photo_path'] : null, JSON_HEX_APOS) ?>)'>📤 Share</button>
+        <?php if (!empty($p['photo_path'])): ?>
+        <a href="/<?= e($p['photo_path']) ?>" download title="Save photo to your phone, then post it from inside TikTok" class="btn btn-sm btn-outline-secondary">⬇</a>
+        <?php endif; ?>
         <a href="/products/edit.php?id=<?= (int)$p['id'] ?>" class="btn btn-sm btn-outline-secondary">Edit</a>
       </div>
     </div>
