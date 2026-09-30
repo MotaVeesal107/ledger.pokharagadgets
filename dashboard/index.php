@@ -73,6 +73,7 @@ usort($recent, fn($a, $b) => strcmp($b['created_at'], $a['created_at']));
 $recent = array_slice($recent, 0, 10);
 
 $totalProducts = (int)$pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();
+$totalModels = (int)$pdo->query("SELECT COUNT(DISTINCT device_model) FROM products WHERE device_model IS NOT NULL AND device_model <> ''")->fetchColumn();
 
 $pageTitle = 'Dashboard';
 $active = 'dashboard';
@@ -139,6 +140,13 @@ require __DIR__ . '/../includes/header.php';
   </div>
   <div class="col-md-3">
     <div class="card p-3">
+      <div class="stat-label mb-2">Phone Models</div>
+      <div class="stat-value"><?= $totalModels ?></div>
+      <a href="/models/index.php" class="small">Browse by model &raquo;</a>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-3">
       <div class="stat-label mb-2">Customers owe the shop</div>
       <div class="stat-value text-danger"><?= format_currency($totalCustomerDues) ?></div>
       <a href="/parties/index.php?type=customer" class="small">View customers &raquo;</a>
@@ -158,16 +166,17 @@ require __DIR__ . '/../includes/header.php';
     <div class="card">
       <div class="p-3 border-bottom fw-semibold">Low Stock Products</div>
       <table class="table mb-0">
-        <thead><tr><th>Product</th><th>Stock</th><th>Threshold</th></tr></thead>
+        <thead><tr><th>Product</th><th>Model</th><th>Stock</th><th>Threshold</th></tr></thead>
         <tbody>
           <?php foreach (array_slice($lowStock, 0, 10) as $p): ?>
           <tr>
             <td><?= e($p['name']) ?></td>
+            <td><?= $p['device_model'] ? '<a href="/models/view.php?model=' . urlencode($p['device_model']) . '">' . e($p['device_model']) . '</a>' : '—' ?></td>
             <td><span class="badge <?= $p['stock'] <= 0 ? 'badge-out' : 'badge-low' ?>"><?= (int)$p['stock'] ?></span></td>
             <td><?= (int)$p['low_stock_threshold'] ?></td>
           </tr>
           <?php endforeach; ?>
-          <?php if (!$lowStock): ?><tr><td colspan="3" class="text-center text-muted py-3">Nothing low on stock.</td></tr><?php endif; ?>
+          <?php if (!$lowStock): ?><tr><td colspan="4" class="text-center text-muted py-3">Nothing low on stock.</td></tr><?php endif; ?>
         </tbody>
       </table>
     </div>
