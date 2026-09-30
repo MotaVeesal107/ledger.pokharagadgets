@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/functions.php';
 
-const PRODUCT_IMPORT_COLUMNS = ['name', 'sku', 'barcode', 'category', 'brand', 'device_model', 'unit', 'low_stock_threshold', 'warranty_period', 'is_serialized', 'cost_price_ref', 'sell_price_ref'];
+const PRODUCT_IMPORT_COLUMNS = ['name', 'sku', 'barcode', 'category', 'brand', 'device_model', 'color', 'unit', 'low_stock_threshold', 'warranty_period', 'is_serialized', 'cost_price_ref', 'sell_price_ref'];
 const PRODUCT_IMPORT_MAX_ROWS = 2000;
 
 /** Parses an uploaded product CSV into raw [line, data] rows, keyed by known column names. */
@@ -92,6 +92,7 @@ function validate_product_import_rows(PDO $pdo, array $rows) {
             'category' => trim($data['category'] ?? '') ?: null,
             'brand' => trim($data['brand'] ?? '') ?: null,
             'device_model' => trim($data['device_model'] ?? '') ?: null,
+            'color' => trim($data['color'] ?? '') ?: null,
             'unit' => trim($data['unit'] ?? '') ?: 'pcs',
             'low_stock_threshold' => $threshold,
             'warranty_period' => trim($data['warranty_period'] ?? '') ?: null,
@@ -115,15 +116,15 @@ function commit_product_import(PDO $pdo, array $validRows, $includeCost) {
     $pdo->beginTransaction();
     try {
         $stmt = $pdo->prepare(
-            'INSERT INTO products (name, sku, barcode, category, brand, device_model, unit, low_stock_threshold, warranty_period, is_serialized, cost_price_ref, sell_price_ref)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO products (name, sku, barcode, category, brand, device_model, color, unit, low_stock_threshold, warranty_period, is_serialized, cost_price_ref, sell_price_ref)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $skuStmt = $pdo->prepare('UPDATE products SET sku = ? WHERE id = ?');
         $count = 0;
         foreach ($validRows as $row) {
             $n = $row['normalized'];
             $stmt->execute([
-                $n['name'], $n['sku'], $n['barcode'], $n['category'], $n['brand'], $n['device_model'],
+                $n['name'], $n['sku'], $n['barcode'], $n['category'], $n['brand'], $n['device_model'], $n['color'],
                 $n['unit'], $n['low_stock_threshold'], $n['warranty_period'], $n['is_serialized'],
                 $includeCost ? $n['cost_price_ref'] : 0, $n['sell_price_ref'],
             ]);

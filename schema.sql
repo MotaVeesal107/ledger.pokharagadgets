@@ -82,6 +82,7 @@ CREATE TABLE products (
   category VARCHAR(100) DEFAULT NULL,
   brand VARCHAR(100) DEFAULT NULL,
   device_model VARCHAR(100) DEFAULT NULL,
+  color VARCHAR(60) DEFAULT NULL,
   unit VARCHAR(20) NOT NULL DEFAULT 'pcs',
   low_stock_threshold INT NOT NULL DEFAULT 0,
   warranty_period VARCHAR(40) DEFAULT NULL,
@@ -92,7 +93,8 @@ CREATE TABLE products (
   UNIQUE KEY uq_products_sku (sku),
   INDEX idx_products_category (category),
   INDEX idx_products_brand (brand),
-  INDEX idx_products_device_model (device_model)
+  INDEX idx_products_device_model (device_model),
+  INDEX idx_products_color (color)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------

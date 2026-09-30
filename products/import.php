@@ -96,7 +96,7 @@ require __DIR__ . '/../includes/header.php';
 
   <div class="card mb-3">
     <table class="table mb-0">
-      <thead><tr><th>Line</th><th>Name</th><th>SKU</th><th>Category</th><th>Brand</th><th>Device Model</th><th class="text-end">Cost</th><th class="text-end">Sell</th><th>Status</th></tr></thead>
+      <thead><tr><th>Line</th><th>Name</th><th>SKU</th><th>Category</th><th>Brand</th><th>Device Model</th><th>Color</th><th class="text-end">Cost</th><th class="text-end">Sell</th><th>Status</th></tr></thead>
       <tbody>
         <?php foreach ($preview as $row): $n = $row['normalized']; ?>
         <tr class="<?= $row['errors'] ? 'table-danger' : '' ?>">
@@ -106,6 +106,7 @@ require __DIR__ . '/../includes/header.php';
           <td><?= e($n['category']) ?></td>
           <td><?= e($n['brand']) ?></td>
           <td><?= e($n['device_model']) ?></td>
+          <td><?= e($n['color']) ?></td>
           <td class="text-end"><?= format_currency($n['cost_price_ref']) ?></td>
           <td class="text-end"><?= format_currency($n['sell_price_ref']) ?></td>
           <td class="small">

@@ -9,13 +9,14 @@ $search = trim($_GET['q'] ?? '');
 $deviceFilter = trim($_GET['device_model'] ?? '');
 $categoryFilter = trim($_GET['category'] ?? '');
 $brandFilter = trim($_GET['brand'] ?? '');
+$colorFilter = trim($_GET['color'] ?? '');
 
 $conditions = [];
 $params = [];
 if ($search !== '') {
-    $conditions[] = '(p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ? OR p.category LIKE ? OR p.brand LIKE ? OR p.device_model LIKE ?)';
+    $conditions[] = '(p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ? OR p.category LIKE ? OR p.brand LIKE ? OR p.device_model LIKE ? OR p.color LIKE ?)';
     $like = '%' . $search . '%';
-    array_push($params, $like, $like, $like, $like, $like, $like);
+    array_push($params, $like, $like, $like, $like, $like, $like, $like);
 }
 if ($deviceFilter !== '') {
     $conditions[] = 'p.device_model = ?';
@@ -29,6 +30,10 @@ if ($brandFilter !== '') {
     $conditions[] = 'p.brand = ?';
     $params[] = $brandFilter;
 }
+if ($colorFilter !== '') {
+    $conditions[] = 'p.color = ?';
+    $params[] = $colorFilter;
+}
 $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
 $products = get_products_with_stock($pdo, $where, $params);
@@ -38,6 +43,9 @@ $deviceModels = $pdo->query(
 )->fetchAll(PDO::FETCH_COLUMN);
 $brands = $pdo->query(
     "SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand <> '' ORDER BY brand"
+)->fetchAll(PDO::FETCH_COLUMN);
+$colors = $pdo->query(
+    "SELECT DISTINCT color FROM products WHERE color IS NOT NULL AND color <> '' ORDER BY color"
 )->fetchAll(PDO::FETCH_COLUMN);
 $categories = $pdo->query(
     "SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category <> '' ORDER BY category"
@@ -88,6 +96,14 @@ require __DIR__ . '/../includes/header.php';
       <?php endforeach; ?>
     </select>
   </div>
+  <div class="col-auto">
+    <select name="color" class="form-select" onchange="this.form.submit()">
+      <option value="">All colors</option>
+      <?php foreach ($colors as $c): ?>
+      <option value="<?= e($c) ?>" <?= $colorFilter === $c ? 'selected' : '' ?>><?= e($c) ?></option>
+      <?php endforeach; ?>
+    </select>
+  </div>
   <div class="col-auto"><button class="btn btn-outline-secondary">Filter</button></div>
 </form>
 
@@ -95,7 +111,7 @@ require __DIR__ . '/../includes/header.php';
   <table class="table mb-0">
     <thead>
       <tr>
-        <th></th><th>Product</th><th>Category</th><th>Brand</th><th>Device Model</th><th>SKU</th><th>Stock</th><th>Unit</th>
+        <th></th><th>Product</th><th>Category</th><th>Brand</th><th>Device Model</th><th>Color</th><th>SKU</th><th>Stock</th><th>Unit</th>
         <?php if ($showCost): ?><th>Cost</th><?php endif; ?>
         <th>Sell Price</th><th>Reorder</th><th>Status</th><th></th>
       </tr>
@@ -117,6 +133,7 @@ require __DIR__ . '/../includes/header.php';
         <td><?= e($p['category']) ?></td>
         <td><?= e($p['brand']) ?></td>
         <td><?= e($p['device_model']) ?></td>
+        <td><?= e($p['color']) ?></td>
         <td><?= e($p['sku']) ?></td>
         <td><?= $stock ?> <?= e($p['unit']) ?></td>
         <td><?= e($p['unit']) ?></td>
@@ -133,14 +150,46 @@ require __DIR__ . '/../includes/header.php';
           <?php endif; ?>
         </td>
         <td class="text-end">
+          <button type="button" class="btn btn-sm btn-outline-secondary" title="Share to WhatsApp / Instagram / TikTok"
+                  onclick='shareProduct(<?= json_encode($p['name'], JSON_HEX_APOS) ?>, <?= json_encode(format_currency($p['sell_price_ref']), JSON_HEX_APOS) ?>, <?= json_encode($p['photo_path'] ? '/' . $p['photo_path'] : null, JSON_HEX_APOS) ?>)'>📤</button>
           <a href="/products/edit.php?id=<?= (int)$p['id'] ?>" class="btn btn-sm btn-outline-secondary">Edit</a>
         </td>
       </tr>
       <?php endforeach; ?>
       <?php if (!$products): ?>
-      <tr><td colspan="13" class="text-center text-muted py-4">No products yet.</td></tr>
+      <tr><td colspan="14" class="text-center text-muted py-4">No products yet.</td></tr>
       <?php endif; ?>
     </tbody>
   </table>
 </div>
+
+<script>
+async function shareProduct(name, price, photo) {
+  const caption = `${name}\n${price}`;
+  try {
+    if (photo && window.isSecureContext && navigator.canShare) {
+      const resp = await fetch(photo);
+      const blob = await resp.blob();
+      const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+      const file = new File([blob], `${name.replace(/[^a-z0-9]+/gi, '-')}.${ext}`, { type: blob.type });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: name, text: caption });
+        return;
+      }
+    }
+    if (navigator.share) {
+      await navigator.share({ title: name, text: caption });
+      return;
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') return; // user closed the share sheet
+  }
+  // No Web Share API here (most desktop browsers) — fall back to a WhatsApp
+  // link with the caption ready, and let them attach the photo by hand.
+  window.open(`https://wa.me/?text=${encodeURIComponent(caption)}`, '_blank');
+  if (photo) {
+    alert("This browser can't attach the photo automatically. WhatsApp opened with the caption ready — please attach the photo yourself, or open this page on your phone to share photo + caption together in one tap.");
+  }
+}
+</script>
 <?php require __DIR__ . '/../includes/footer.php'; ?>

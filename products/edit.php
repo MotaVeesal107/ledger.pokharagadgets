@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $sku = trim($_POST['sku'] ?? '') ?: generate_sku($category, $id);
             $stmt = $pdo->prepare(
-                'UPDATE products SET name=?, sku=?, barcode=?, photo_path=?, category=?, brand=?, device_model=?, unit=?, low_stock_threshold=?, warranty_period=?, is_serialized=?, cost_price_ref=?, sell_price_ref=? WHERE id=?'
+                'UPDATE products SET name=?, sku=?, barcode=?, photo_path=?, category=?, brand=?, device_model=?, color=?, unit=?, low_stock_threshold=?, warranty_period=?, is_serialized=?, cost_price_ref=?, sell_price_ref=? WHERE id=?'
             );
             $stmt->execute([
                 $name,
@@ -48,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $category,
                 trim($_POST['brand']) ?: null,
                 trim($_POST['device_model']) ?: null,
+                trim($_POST['color']) ?: null,
                 trim($_POST['unit']) ?: 'pcs',
                 (int)($_POST['low_stock_threshold'] ?? 0),
                 trim($_POST['warranty_period']) ?: null,
@@ -74,6 +75,9 @@ $deviceModels = $pdo->query(
 )->fetchAll(PDO::FETCH_COLUMN);
 $brands = $pdo->query(
     "SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand <> '' ORDER BY brand"
+)->fetchAll(PDO::FETCH_COLUMN);
+$colors = $pdo->query(
+    "SELECT DISTINCT color FROM products WHERE color IS NOT NULL AND color <> '' ORDER BY color"
 )->fetchAll(PDO::FETCH_COLUMN);
 $categories = $pdo->query(
     "SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category <> '' ORDER BY category"
@@ -128,12 +132,18 @@ require __DIR__ . '/../includes/header.php';
         <input type="text" name="device_model" class="form-control" list="device-models" value="<?= e($product['device_model']) ?>" placeholder="e.g. iPhone 13">
         <datalist id="device-models"><?php foreach ($deviceModels as $dm): ?><option value="<?= e($dm) ?>"><?php endforeach; ?></datalist>
       </div>
-      <div class="col-md-6 mb-3"><label class="form-label">Unit</label>
-        <input type="text" name="unit" class="form-control" value="<?= e($product['unit']) ?>"></div>
+      <div class="col-md-6 mb-3"><label class="form-label">Color</label>
+        <input type="text" name="color" class="form-control" list="colors" value="<?= e($product['color']) ?>" placeholder="e.g. Black, Blue, Clear">
+        <datalist id="colors"><?php foreach ($colors as $c): ?><option value="<?= e($c) ?>"><?php endforeach; ?></datalist>
+      </div>
     </div>
     <div class="row">
+      <div class="col-md-6 mb-3"><label class="form-label">Unit</label>
+        <input type="text" name="unit" class="form-control" value="<?= e($product['unit']) ?>"></div>
       <div class="col-md-6 mb-3"><label class="form-label">Low stock threshold</label>
         <input type="number" name="low_stock_threshold" class="form-control" value="<?= e($product['low_stock_threshold']) ?>"></div>
+    </div>
+    <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">Warranty period</label>
         <input type="text" name="warranty_period" class="form-control" value="<?= e($product['warranty_period']) ?>"></div>
     </div>

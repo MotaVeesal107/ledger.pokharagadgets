@@ -12,6 +12,9 @@ $deviceModels = $pdo->query(
 $brands = $pdo->query(
     "SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand <> '' ORDER BY brand"
 )->fetchAll(PDO::FETCH_COLUMN);
+$colors = $pdo->query(
+    "SELECT DISTINCT color FROM products WHERE color IS NOT NULL AND color <> '' ORDER BY color"
+)->fetchAll(PDO::FETCH_COLUMN);
 $categories = $pdo->query(
     "SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category <> '' ORDER BY category"
 )->fetchAll(PDO::FETCH_COLUMN);
@@ -27,8 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $photoPath = save_product_photo_upload('photo');
             $stmt = $pdo->prepare(
-                'INSERT INTO products (name, sku, barcode, photo_path, category, brand, device_model, unit, low_stock_threshold, warranty_period, is_serialized, cost_price_ref, sell_price_ref)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO products (name, sku, barcode, photo_path, category, brand, device_model, color, unit, low_stock_threshold, warranty_period, is_serialized, cost_price_ref, sell_price_ref)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $name,
@@ -38,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $category,
                 trim($_POST['brand']) ?: null,
                 trim($_POST['device_model']) ?: null,
+                trim($_POST['color']) ?: null,
                 trim($_POST['unit']) ?: 'pcs',
                 (int)($_POST['low_stock_threshold'] ?? 0),
                 trim($_POST['warranty_period']) ?: null,
@@ -101,12 +105,19 @@ require __DIR__ . '/../includes/header.php';
         <datalist id="device-models"><?php foreach ($deviceModels as $dm): ?><option value="<?= e($dm) ?>"><?php endforeach; ?></datalist>
         <div class="form-text">For cases/accessories tied to a specific phone model. Leave blank if not applicable.</div>
       </div>
-      <div class="col-md-6 mb-3"><label class="form-label">Unit</label>
-        <input type="text" name="unit" class="form-control" value="<?= e($_POST['unit'] ?? 'pcs') ?>"></div>
+      <div class="col-md-6 mb-3"><label class="form-label">Color</label>
+        <input type="text" name="color" class="form-control" list="colors" value="<?= e($_POST['color'] ?? '') ?>" placeholder="e.g. Black, Blue, Clear">
+        <datalist id="colors"><?php foreach ($colors as $c): ?><option value="<?= e($c) ?>"><?php endforeach; ?></datalist>
+        <div class="form-text">Give each color its own product row (own SKU, stock, photo) — e.g. "iPhone 11 Case" in Black and in Blue are two separate products.</div>
+      </div>
     </div>
     <div class="row">
+      <div class="col-md-6 mb-3"><label class="form-label">Unit</label>
+        <input type="text" name="unit" class="form-control" value="<?= e($_POST['unit'] ?? 'pcs') ?>"></div>
       <div class="col-md-6 mb-3"><label class="form-label">Low stock threshold</label>
         <input type="number" name="low_stock_threshold" class="form-control" value="<?= e($_POST['low_stock_threshold'] ?? 0) ?>"></div>
+    </div>
+    <div class="row">
       <div class="col-md-6 mb-3"><label class="form-label">Warranty period</label>
         <input type="text" name="warranty_period" class="form-control" placeholder="e.g. 6 months" value="<?= e($_POST['warranty_period'] ?? '') ?>"></div>
     </div>
