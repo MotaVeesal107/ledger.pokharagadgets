@@ -54,6 +54,7 @@ $__shopSettings = get_settings($pdo);
     <a class="nav-link<?= $active === 'dashboard' ? ' active' : '' ?>" href="/dashboard/index.php">Dashboard</a>
     <a class="nav-link<?= $active === 'products' ? ' active' : '' ?>" href="/products/index.php">Products</a>
     <a class="nav-link<?= $active === 'brands' ? ' active' : '' ?>" href="/brands/index.php">Brands</a>
+    <a class="nav-link<?= $active === 'models' ? ' active' : '' ?>" href="/models/index.php">Models</a>
     <a class="nav-link<?= $active === 'parties' ? ' active' : '' ?>" href="/parties/index.php">Parties</a>
     <a class="nav-link<?= $active === 'purchases' ? ' active' : '' ?>" href="/purchases/index.php">Purchases</a>
     <a class="nav-link<?= $active === 'sales' ? ' active' : '' ?>" href="/sales/index.php">Sales</a>

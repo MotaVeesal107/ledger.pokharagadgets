@@ -62,6 +62,7 @@ require __DIR__ . '/../includes/header.php';
   </div>
   <div>
     <a href="/brands/index.php" class="btn btn-outline-secondary">Brands</a>
+    <a href="/models/index.php" class="btn btn-outline-secondary">Models</a>
     <a href="/products/barcodes.php" class="btn btn-outline-secondary">Barcode Generator</a>
     <a href="/products/import.php" class="btn btn-outline-secondary">Import CSV</a>
     <a href="/products/add.php" class="btn btn-accent">+ Add product</a>
