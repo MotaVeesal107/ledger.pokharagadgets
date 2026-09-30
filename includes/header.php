@@ -29,16 +29,16 @@ $__shopSettings = get_settings($pdo);
 </script>
 </head>
 <body>
+<div class="mobile-topbar no-print" id="mobile-topbar">
+  <button type="button" class="menu-toggle" onclick="openMobileMenu()" aria-label="Open menu">☰</button>
+  <span class="mobile-brand">
+    <?php if (!empty($__shopSettings['logo_path'])): ?><img src="/<?= e($__shopSettings['logo_path']) ?>" alt="" class="mobile-logo">
+    <?php else: ?><span class="swatch"></span><?php endif; ?>
+    <?= e(APP_NAME) ?>
+  </span>
+</div>
+<div class="sidebar-backdrop no-print" onclick="closeMobileMenu()"></div>
 <div class="app-shell">
-  <div class="mobile-topbar no-print" id="mobile-topbar">
-    <button type="button" class="menu-toggle" onclick="openMobileMenu()" aria-label="Open menu">☰</button>
-    <span class="mobile-brand">
-      <?php if (!empty($__shopSettings['logo_path'])): ?><img src="/<?= e($__shopSettings['logo_path']) ?>" alt="" class="mobile-logo">
-      <?php else: ?><span class="swatch"></span><?php endif; ?>
-      <?= e(APP_NAME) ?>
-    </span>
-  </div>
-  <div class="sidebar-backdrop no-print" onclick="closeMobileMenu()"></div>
   <nav class="sidebar no-print">
     <button type="button" class="sidebar-close no-print" onclick="closeMobileMenu()" aria-label="Close menu">&times;</button>
     <div class="brand">
